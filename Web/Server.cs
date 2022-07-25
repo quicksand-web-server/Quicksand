@@ -3,6 +3,9 @@ using System.Net.Sockets;
 
 namespace Quicksand.Web
 {
+    /// <summary>
+    /// A webserver that can also handle websocket connection
+    /// </summary>
     public class Server
     {
         private readonly Socket m_HttpServerSocket;
@@ -13,17 +16,44 @@ namespace Quicksand.Web
         private readonly Dictionary<string, Resource> m_Resources = new();
         private readonly FileSystem m_FileSystem = new();
 
+        /// <summary>
+        /// Create a Quicksand server on the specified port
+        /// </summary>
+        /// <param name="port">
+        /// Port on which the server will listen. 80 by default
+        /// </param>
         public Server(int port = 80)
         {
             m_Port = port;
             m_HttpServerSocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
         }
 
-        public void AddResource(string httpPath, string path, bool preLoad = false)
+        /// <summary>
+        /// Add a file to the server file system
+        /// </summary>
+        /// <param name="url">
+        /// Path of the file in the server. Should start with a /
+        /// </param>
+        /// <param name="path">
+        /// Path of the file to add
+        /// </param>
+        /// <param name="preLoad">
+        /// Specify if we should load in memory the file content. False by default
+        /// </param>
+        public void AddResource(string url, string path, bool preLoad = false)
         {
-            m_FileSystem.AddPath(httpPath, path, preLoad);
+            m_FileSystem.AddPath(url, path, preLoad);
         }
 
+        /// <summary>
+        /// Add a resource to the server
+        /// </summary>
+        /// <param name="url">
+        /// Path of the resource in the server. Should start with a /
+        /// </param>
+        /// <param name="args">
+        /// Parameters to send to the OnInit method of the resource
+        /// </param>
         public void AddResource<TRes>(string url, params dynamic[] args) where TRes : Resource, new()
         {
             Resource newResource = new TRes();
@@ -31,6 +61,12 @@ namespace Quicksand.Web
             m_Resources[url] = newResource;
         }
 
+        /// <summary>
+        /// Update the server
+        /// </summary>
+        /// <param name="deltaTime">
+        /// Elapsed time in milliseconds since last update
+        /// </param>
         public void Update(long deltaTime)
         {
             foreach (Resource resource in m_Resources.Values)
@@ -40,6 +76,9 @@ namespace Quicksand.Web
             }
         }
 
+        /// <summary>
+        /// Start the webserver
+        /// </summary>
         public void StartListening()
         {
             try
@@ -99,21 +138,48 @@ namespace Quicksand.Web
             }
         }
 
-        public void Send(int clientID, string response)
+        /// <summary>
+        /// Send the given message to the given client
+        /// </summary>
+        /// <param name="clientID">
+        /// ID of the client to which the server should send the message
+        /// </param>
+        /// <param name="message">
+        /// Message to send to the client
+        /// </param>
+        public void Send(int clientID, string message)
         {
             if (m_Clients.TryGetValue(clientID, out var client) && client.IsWebSocket())
-                client.Send(response);
+                client.Send(message);
         }
 
-        public void SendError(int clientID, Http.Response? response)
+        /// <summary>
+        /// Send the given error response to the given client then close the connection with it
+        /// </summary>
+        /// <param name="clientID">
+        /// ID of the client to which the server should send the error
+        /// </param>
+        /// <param name="error">
+        /// HTTP Response to send to the client
+        /// </param>
+        public void SendError(int clientID, Http.Response? error)
         {
             if (m_Clients.TryGetValue(clientID, out var client))
             {
-                client.SendResponse(response);
+                client.SendResponse(error);
                 client.Disconnect();
             }
         }
 
+        /// <summary>
+        /// Send the given http response to the given client
+        /// </summary>
+        /// <param name="clientID">
+        /// ID of the client to which the server should send the error
+        /// </param>
+        /// <param name="response">
+        /// HTTP Response to send to the client
+        /// </param>
         public void SendResponse(int clientID, Http.Response? response)
         {
             if (m_Clients.TryGetValue(clientID, out var client))
