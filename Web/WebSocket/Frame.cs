@@ -2,7 +2,7 @@
 
 namespace Quicksand.Web.WebSocket
 {
-    public class Frame
+    internal class Frame
     {
         private readonly bool m_Fin;
         private readonly bool m_Rsv1; //Not used for now

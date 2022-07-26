@@ -5,13 +5,9 @@ namespace Quicksand.Web.WebSocket
 {
     internal class Protocol : AProtocole
     {
-        private readonly IListener m_Listener;
         private readonly StringBuilder m_ReadBuffer = new();
 
-        public Protocol(Socket socket, IListener listener) : base(socket)
-        {
-            m_Listener = listener;
-        }
+        public Protocol(Socket socket, Client client) : base(socket, client) {}
 
         internal override void ReadBuffer(byte[] buffer)
         {
@@ -21,14 +17,11 @@ namespace Quicksand.Web.WebSocket
             {
                 string message = m_ReadBuffer.ToString();
                 if (frame.GetOpCode() == 1) //1 - text message
-                    m_Listener.OnMessage(message);
+                    m_Client.OnMessage(message);
                 else if (frame.GetOpCode() == 8) //8 - close message
-                    m_Listener.OnClose(frame.GetStatusCode(), message);
+                    m_Client.OnClose(frame.GetStatusCode(), message);
                 else if (frame.GetOpCode() == 9) //9 - ping message
-                {
-                    m_Listener.OnPing(message);
                     WriteToWebsocket(new(true, 10, message)); //10 - pong message
-                }
                 m_ReadBuffer.Clear();
             }
         }

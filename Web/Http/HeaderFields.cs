@@ -2,13 +2,13 @@
 
 namespace Quicksand.Web.Http
 {
-    public class HeaderFields
+    internal class HeaderFields
     {
         private Dictionary<string, object> m_Fields = new();
 
         public object this[string key]
         {
-            get => (object)m_Fields[key];
+            get => m_Fields[key];
             set => m_Fields[key] = value;
         }
 

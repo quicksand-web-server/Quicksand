@@ -5,13 +5,9 @@ namespace Quicksand.Web.Http
 {
     internal class Protocol : AProtocole
     {
-        private readonly IListener m_Listener;
         private string m_ReadBuffer = "";
 
-        public Protocol(Socket socket, IListener listener) : base(socket)
-        {
-            m_Listener = listener;
-        }
+        public Protocol(Socket socket, Client client) : base(socket, client) {}
 
         internal override void ReadBuffer(byte[] buffer)
         {
@@ -32,7 +28,7 @@ namespace Quicksand.Web.Http
                     {
                         Request httpRequest = new(data);
                         //TODO Handle request body
-                        m_Listener.OnRequest(httpRequest);
+                        m_Client.OnRequest(httpRequest);
                     }
                 }
             } while (position >= 0);

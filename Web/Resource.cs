@@ -1,13 +1,23 @@
 ﻿namespace Quicksand.Web
 {
-    public class Resource
+    /// <summary>
+    /// Represent a http resource targetable by request
+    /// </summary>
+    public abstract class Resource
     {
         private readonly bool m_NeedUpdate = false;
         private Server? m_Server = null;
-        private string m_URL = "";
         private readonly List<int> m_Listeners = new();
 
-        public Resource() { }
+        /// <summary>
+        /// Constructor
+        /// </summary>
+        protected Resource() { }
+
+        /// <summary>
+        /// Constructor
+        /// </summary>
+        /// <param name="needUpdate">Specify if this resource need to be updated or not</param>
         protected Resource(bool needUpdate)
         {
             m_NeedUpdate = needUpdate;
@@ -15,9 +25,8 @@
 
         internal bool NeedUpdate() { return m_NeedUpdate; }
 
-        internal void Init(Server server, string url, params dynamic[] args)
+        internal void Init(Server server, params dynamic[] args)
         {
-            m_URL = url;
             m_Server = server;
             OnInit(args);
         }
@@ -27,43 +36,74 @@
             OnUpdate(deltaTime);
         }
 
-        protected virtual void OnInit(params dynamic[] args) { }
+        /// <summary>
+        /// Function called when initializing the resources
+        /// </summary>
+        /// <param name="args">Arguments of the initialization</param>
+        protected abstract void OnInit(params dynamic[] args);
 
+        /// <summary>
+        /// Function called when updating the resource
+        /// </summary>
+        /// <param name="deltaTime">Delta time in milliseconds since last update</param>
         protected virtual void OnUpdate(long deltaTime) {}
 
-        public string URL { get { return m_URL; } }
 
-        protected void SendError(Http.Response? response)
+        /// <summary>
+        /// Send the given error response to all the clients listening to this resource then close the connection with them
+        /// </summary>
+        /// <param name="error">HTTP Response to send to the client</param>
+        protected void SendError(Http.Response? error)
         {
             if (m_Server != null)
             {
-                foreach (int listenerID in m_Listeners)
-                    m_Server.SendError(listenerID, response);
+                foreach (int clientID in m_Listeners)
+                    m_Server.SendError(clientID, error);
             }
         }
 
-        protected void Send(string response)
+        /// <summary>
+        /// Send the given message to all the clients listening to this resource
+        /// </summary>
+        /// <param name="message">Message to send to the client</param>
+        protected void Send(string message)
         {
             if (m_Server != null)
             {
-                foreach (int listenerID in m_Listeners)
-                    m_Server.Send(listenerID, response);
+                foreach (int clientID in m_Listeners)
+                    m_Server.Send(clientID, message);
             }
         }
 
-        protected void SendError(int userID, Http.Response? response)
+
+        /// <summary>
+        /// Send the given error response to the given client then close the connection with it
+        /// </summary>
+        /// <param name="clientID">ID of the client to which the server should send the error</param>
+        /// <param name="error">HTTP Response to send to the client</param>
+        protected void SendError(int clientID, Http.Response? error)
         {
-            m_Server?.SendError(userID, response);
+            m_Server?.SendError(clientID, error);
         }
 
-        protected void SendResponse(int userID, Http.Response? response)
+        /// <summary>
+        /// Send the given http response to the given client
+        /// </summary>
+        /// <param name="clientID">ID of the client to which the server should send the error</param>
+        /// <param name="response">HTTP Response to send to the client</param>
+        protected void SendResponse(int clientID, Http.Response? response)
         {
-            m_Server?.SendResponse(userID, response);
+            m_Server?.SendResponse(clientID, response);
         }
 
-        protected void Send(int userID, string response)
+        /// <summary>
+        /// Send the given message to the given client
+        /// </summary>
+        /// <param name="clientID">ID of the client to which the server should send the message</param>
+        /// <param name="message">Message to send to the client</param>
+        protected void Send(int clientID, string message)
         {
-            m_Server?.Send(userID, response);
+            m_Server?.Send(clientID, message);
         }
 
         internal void AddListener(int listenerID)
@@ -125,6 +165,11 @@
                         Patch(clientID, request);
                         break;
                     }
+                default:
+                    {
+                        SendError(clientID, Http.Defines.NewResponse(400));
+                        break;
+                    }
             }
         }
 
@@ -133,18 +178,101 @@
             WebsocketMessage(clientID, message);
         }
 
+        /// <summary>
+        /// Function called when the resource receive a websocket message
+        /// </summary>
+        /// <param name="clientID">ID of the client</param>
+        /// <param name="message">Received message from the websocket</param>
         protected virtual void WebsocketMessage(int clientID, string message) { }
 
-        private void NotImplementedYet(int clientID, string version) { SendError(clientID, Http.Defines.NewResponse(version, 501)); }
+        /// <summary>
+        /// Function called when a GET is requested on this resource
+        /// </summary>
+        /// <remarks>
+        /// Send an HTTP 405 by default
+        /// </remarks>
+        /// <param name="clientID">ID of the client</param>
+        /// <param name="request">Received Http request received from the client</param>
+        protected abstract void Get(int clientID, Http.Request request);
 
-        protected virtual void Get(int clientID, Http.Request request) { NotImplementedYet(clientID, request.Version); }
-        protected virtual void Head(int clientID, Http.Request request) { NotImplementedYet(clientID, request.Version); }
-        protected virtual void Post(int clientID, Http.Request request) { NotImplementedYet(clientID, request.Version); }
-        protected virtual void Put(int clientID, Http.Request request) { NotImplementedYet(clientID, request.Version); }
-        protected virtual void Delete(int clientID, Http.Request request) { NotImplementedYet(clientID, request.Version); }
-        protected virtual void Connect(int clientID, Http.Request request) { NotImplementedYet(clientID, request.Version); }
-        protected virtual void Options(int clientID, Http.Request request) { NotImplementedYet(clientID, request.Version); }
-        protected virtual void Trace(int clientID, Http.Request request) { NotImplementedYet(clientID, request.Version); }
-        protected virtual void Patch(int clientID, Http.Request request) { NotImplementedYet(clientID, request.Version); }
+        /// <summary>
+        /// Function called when a HEAD is requested on this resource
+        /// </summary>
+        /// <remarks>
+        /// Send an HTTP 405 by default
+        /// </remarks>
+        /// <param name="clientID">ID of the client</param>
+        /// <param name="request">Received Http request received from the client</param>
+        protected virtual void Head(int clientID, Http.Request request) { SendError(clientID, Http.Defines.NewResponse(405)); }
+
+        /// <summary>
+        /// Function called when a POST is requested on this resource
+        /// </summary>
+        /// <remarks>
+        /// Send an HTTP 405 by default
+        /// </remarks>
+        /// <param name="clientID">ID of the client</param>
+        /// <param name="request">Received Http request received from the client</param>
+        protected virtual void Post(int clientID, Http.Request request) { SendError(clientID, Http.Defines.NewResponse(405)); }
+
+        /// <summary>
+        /// Function called when a PUT is requested on this resource
+        /// </summary>
+        /// <remarks>
+        /// Send an HTTP 405 by default
+        /// </remarks>
+        /// <param name="clientID">ID of the client</param>
+        /// <param name="request">Received Http request received from the client</param>
+        protected virtual void Put(int clientID, Http.Request request) { SendError(clientID, Http.Defines.NewResponse(405)); }
+
+        /// <summary>
+        /// Function called when a DELETE is requested on this resource
+        /// </summary>
+        /// <remarks>
+        /// Send an HTTP 405 by default
+        /// </remarks>
+        /// <param name="clientID">ID of the client</param>
+        /// <param name="request">Received Http request received from the client</param>
+        protected virtual void Delete(int clientID, Http.Request request) { SendError(clientID, Http.Defines.NewResponse(405)); }
+
+        /// <summary>
+        /// Function called when a CONNECT is requested on this resource
+        /// </summary>
+        /// <remarks>
+        /// Send an HTTP 405 by default
+        /// </remarks>
+        /// <param name="clientID">ID of the client</param>
+        /// <param name="request">Received Http request received from the client</param>
+        protected virtual void Connect(int clientID, Http.Request request) { SendError(clientID, Http.Defines.NewResponse(405)); }
+
+        /// <summary>
+        /// Function called when a OPTIONS is requested on this resource
+        /// </summary>
+        /// <remarks>
+        /// Send an HTTP 405 by default
+        /// </remarks>
+        /// <param name="clientID">ID of the client</param>
+        /// <param name="request">Received Http request received from the client</param>
+        protected virtual void Options(int clientID, Http.Request request) { SendError(clientID, Http.Defines.NewResponse(405)); }
+
+        /// <summary>
+        /// Function called when a TRACE is requested on this resource
+        /// </summary>
+        /// <remarks>
+        /// Send an HTTP 405 by default
+        /// </remarks>
+        /// <param name="clientID">ID of the client</param>
+        /// <param name="request">Received Http request received from the client</param>
+        protected virtual void Trace(int clientID, Http.Request request) { SendError(clientID, Http.Defines.NewResponse(405)); }
+
+        /// <summary>
+        /// Function called when a PATCH is requested on this resource
+        /// </summary>
+        /// <remarks>
+        /// Send an HTTP 405 by default
+        /// </remarks>
+        /// <param name="clientID">ID of the client</param>
+        /// <param name="request">Received Http request received from the client</param>
+        protected virtual void Patch(int clientID, Http.Request request) { SendError(clientID, Http.Defines.NewResponse(405)); }
     }
 }
