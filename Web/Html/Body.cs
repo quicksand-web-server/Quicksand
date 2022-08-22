@@ -1,7 +1,16 @@
 ﻿namespace Quicksand.Web.Html
 {
-    public class Body : BaseElement
+    /// <summary>
+    /// Class representing the &lt;body&gt; markup of an HTML document
+    /// </summary>
+    public class Body : Element
     {
-        public Body() : base("body") { }
+        /// <summary>
+        /// Constructor
+        /// </summary>
+        public Body() : base("body") {}
+
+        /// <returns>A new <seealso cref="ElementBase"/> of the same type</returns>
+        protected override ElementBase MakeDuplicate() { return new Body(); }
     }
 }

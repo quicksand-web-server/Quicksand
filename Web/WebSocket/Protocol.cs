@@ -38,7 +38,7 @@ namespace Quicksand.Web.WebSocket
 
         public static Http.Response HandleHandshake(Http.Request request)
         {
-            Http.Response response = new(request.Version, 101, "Switching Protocols");
+            Http.Response response = new(101, "Switching Protocols");
             response["Server"] = "Web Overlay HTTP Server";
             response["Content-Type"] = "text/html";
             response["Connection"] = "Upgrade";

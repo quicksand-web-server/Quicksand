@@ -75,7 +75,7 @@ namespace Quicksand.Web.WebSocket
                 frame = frame.Skip(2).ToArray();
             }
 
-            m_Content = Encoding.Default.GetString(frame);
+            m_Content = Encoding.UTF8.GetString(frame);
         }
 
         public bool IsFin() { return m_Fin; }
@@ -89,7 +89,7 @@ namespace Quicksand.Web.WebSocket
         public byte[] GetBytes()
         {
             List<byte> bytes = new();
-            byte[] bytesRaw = Encoding.Default.GetBytes(m_Content);
+            byte[] bytesRaw = Encoding.UTF8.GetBytes(m_Content);
 
             if (m_OpCode == 8)
             {

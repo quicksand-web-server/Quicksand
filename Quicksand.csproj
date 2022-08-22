@@ -7,7 +7,7 @@
     <Nullable>enable</Nullable>
     <PackageIcon>sand-snake.png</PackageIcon>
     <RepositoryType>git</RepositoryType>
-    <RepositoryUrl>https://github.com/StreamMaterial/StreamGlass.git</RepositoryUrl>
+    <RepositoryUrl>https://github.com/quicksand-web-server/Quicksand.git</RepositoryUrl>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <GenerateDocumentationFile>True</GenerateDocumentationFile>
@@ -16,11 +16,14 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <None Update="README.md">
+    <Resource Include="sand-snake.png">
       <Pack>True</Pack>
       <PackagePath>\</PackagePath>
-    </None>
-    <None Update="sand-snake.png">
+    </Resource>
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="README.md">
       <Pack>True</Pack>
       <PackagePath>\</PackagePath>
     </None>

@@ -1,4 +1,5 @@
-﻿using System.Net;
+﻿using System.Diagnostics;
+using System.Net;
 using System.Net.Sockets;
 
 namespace Quicksand.Web
@@ -8,18 +9,20 @@ namespace Quicksand.Web
     /// </summary>
     public class Server: AClientListener
     {
+        private readonly Stopwatch m_Watch = new();
         private readonly Socket m_HttpServerSocket;
         private readonly int m_Port;
         private int m_CurrentIdx = 0;
         private readonly List<int> m_FreeIdx = new();
         private readonly Dictionary<int, Client> m_Clients = new();
-        private readonly Dictionary<int, Resource> m_ClientsResource = new();
-        private readonly Dictionary<string, Resource> m_Resources = new();
+        private readonly Dictionary<int, Controler> m_ClientsControlers = new();
+        private readonly Dictionary<string, Http.Resource> m_Resources = new();
+        private readonly Dictionary<string, Controler> m_Controlers = new();
 
         /// <summary>
         /// Create a Quicksand server on the specified <paramref name="port"/>
         /// </summary>
-        /// <param name="port">Port on which the server will listen. 80 by default</param>
+        /// <param name="port">Port on which the server will listen (80 by default)</param>
         public Server(int port = 80)
         {
             m_Port = port;
@@ -46,16 +49,17 @@ namespace Quicksand.Web
         /// </example>
         /// <param name="url">Path of the file in the server. Should start with a /</param>
         /// <param name="path">Path of the file to add</param>
-        /// <param name="preLoad">Specify if we should load in memory the file content. False by default</param>
-        public void AddResource(string url, string path, bool preLoad = false)
+        /// <param name="contentType">MIME type of the content to send</param>
+        /// <param name="preLoad">Specify if we should load in memory the file content (false by default)</param>
+        public void AddResource(string url, string path, string contentType, bool preLoad = false)
         {
             if (File.Exists(path))
-                m_Resources[url] = new Resources.File(path, preLoad);
+                AddResource(url, new Http.File(path, contentType, preLoad));
             else if (Directory.Exists(path))
             {
                 string[] entries = Directory.GetFileSystemEntries(path);
                 foreach (string entry in entries)
-                    AddResource(string.Format("{0}/{1}", (url.Length > 0 && url[^1] == '/') ? url[..^1] : url, Path.GetFileName(entry).Replace(' ', '_').ToLowerInvariant()), entry, preLoad);
+                    AddResource(string.Format("{0}/{1}", (url.Length > 0 && url[^1] == '/') ? url[..^1] : url, Path.GetFileName(entry).Replace(' ', '_').ToLowerInvariant()), entry, contentType, preLoad);
             }
         }
 
@@ -63,26 +67,60 @@ namespace Quicksand.Web
         /// Add a resource to the server
         /// </summary>
         /// <param name="url">Path of the resource in the server. Should start with a /</param>
-        /// <param name="args">Parameters to send to the OnInit method of the resource</param>
-        /// <typeparam name="TRes">The type of resource to instanciate</typeparam>
-        public void AddResource<TRes>(string url, params dynamic[] args) where TRes : Resource, new()
+        /// <param name="resource">The resource to add</param>
+        public void AddResource(string url, Http.Resource resource)
         {
-            Resource newResource = new TRes();
-            newResource.Init(this, args);
-            m_Resources[url] = newResource;
+            resource.Init(this);
+            m_Resources[url] = resource;
+        }
+
+        /// <summary>
+        /// Add a controler to the server
+        /// </summary>
+        /// <param name="url">Path of the resource in the server. Should start with a /</param>
+        /// <param name="controlerBuilder">Builder to create a new controler</param>
+        public void AddResource(string url, IControlerBuilder controlerBuilder)
+        {
+            AddResource(url, new Http.ControlerInstance(controlerBuilder));
+        }
+
+        /// <summary>
+        /// Add a controler to the server
+        /// </summary>
+        /// <param name="url">Path of the resource in the server. Should start with a /</param>
+        /// <param name="controlerBuilder">Delegate to create a new controler</param>
+        /// <param name="singleInstance">If false, server will create one instance of the controller by client (false by default)</param>
+        public void AddResource(string url, DelegateControlerBuilder.Delegate controlerBuilder, bool singleInstance = false)
+        {
+            AddResource(url, new Http.ControlerInstance(controlerBuilder, singleInstance));
+        }
+
+        internal void AddControler(Controler controler)
+        {
+            if (!m_Controlers.ContainsKey(controler.GetID()))
+            {
+                controler.Init(this);
+                m_Controlers[controler.GetID()] = controler;
+            }
         }
 
         /// <summary>
         /// Update the server
         /// </summary>
-        /// <param name="deltaTime">Elapsed time in milliseconds since last update</param>
-        public void Update(long deltaTime)
+        public void Update()
         {
-            foreach (Resource resource in m_Resources.Values)
+            m_Watch.Stop();
+            List<string> controllerToRemove = new();
+            foreach (Controler controler in m_Controlers.Values)
             {
-                if (resource.NeedUpdate())
-                    resource.Update(deltaTime);
+                if (controler.NeedDelete())
+                    controllerToRemove.Add(controler.GetID());
+                else
+                    controler.Update(m_Watch.ElapsedMilliseconds);
             }
+            foreach (string toRemove in controllerToRemove)
+                m_Controlers.Remove(toRemove);
+            m_Watch.Restart();
         }
 
         /// <summary>
@@ -95,6 +133,7 @@ namespace Quicksand.Web
                 m_HttpServerSocket.Bind(new IPEndPoint(IPAddress.Any, m_Port));
                 m_HttpServerSocket.Listen(10);
                 m_HttpServerSocket.BeginAccept(AcceptCallback, null);
+                m_Watch.Start();
             }
             catch (Exception ex)
             {
@@ -106,7 +145,6 @@ namespace Quicksand.Web
         {
             try
             {
-                Console.WriteLine($"Accept CallBack port:{m_Port} protocol type: {ProtocolType.Tcp}");
                 Socket acceptedSocket = m_HttpServerSocket.EndAccept(ar);
                 int clientID = m_CurrentIdx;
                 if (m_FreeIdx.Count == 0)
@@ -133,27 +171,21 @@ namespace Quicksand.Web
         /// <param name="clientID">ID of the client</param>
         protected sealed override void OnClientDisconnect(int clientID)
         {
-            if (m_ClientsResource.TryGetValue(clientID, out var oldResource))
+            if (m_ClientsControlers.TryGetValue(clientID, out var oldResource))
                 oldResource.RemoveListener(clientID);
             m_Clients.Remove(clientID);
             m_FreeIdx.Add(clientID);
         }
 
         /// <summary>
-        /// Function called when the client receive an http request
+        /// Function called when the client receive an HTTP request
         /// </summary>
         /// <param name="clientID">ID of the client</param>
-        /// <param name="request">Http request received</param>
+        /// <param name="request">HTTP request received</param>
         protected sealed override void OnHttpRequest(int clientID, Http.Request request)
         {
             if (m_Resources.TryGetValue(request.Path, out var resource))
-            {
-
-                if (request.HaveHeaderField("Sec-WebSocket-Key"))
-                    ListenTo(clientID, resource);
-                else
-                    resource.OnRequest(clientID, request);
-            }
+                resource.OnRequest(clientID, request);
             else
                 SendError(clientID, Http.Defines.NewResponse(404));
         }
@@ -184,7 +216,7 @@ namespace Quicksand.Web
         }
 
         /// <summary>
-        /// Send the given http response to the given client
+        /// Send the given HTTP response to the given client
         /// </summary>
         /// <param name="clientID">ID of the client to which the server should send the error</param>
         /// <param name="response">HTTP response to send to the client</param>
@@ -194,17 +226,6 @@ namespace Quicksand.Web
                 client.SendResponse(response);
         }
 
-        internal void ListenTo(int clientID, Resource resource)
-        {
-            if (m_Clients.ContainsKey(clientID))
-            {
-                if (m_ClientsResource.TryGetValue(clientID, out var oldResource))
-                    oldResource.RemoveListener(clientID);
-                m_ClientsResource[clientID] = resource;
-                resource.AddListener(clientID);
-            }
-        }
-
         /// <summary>
         /// Function called when the client receive a websocket message
         /// </summary>
@@ -212,8 +233,18 @@ namespace Quicksand.Web
         /// <param name="message">Websocket message received</param>
         protected sealed override void OnWebSocketMessage(int clientID, string message)
         {
-            if (m_ClientsResource.TryGetValue(clientID, out var resource))
-                resource.OnWebsocketMessage(clientID, message);
+            if (m_ClientsControlers.TryGetValue(clientID, out var resource))
+                resource.WebsocketMessage(clientID, message);
+            else if (m_Controlers.TryGetValue(message, out var controler))
+            {
+                if (m_Clients.ContainsKey(clientID))
+                {
+                    if (m_ClientsControlers.TryGetValue(clientID, out var oldControler))
+                        oldControler.RemoveListener(clientID);
+                    m_ClientsControlers[clientID] = controler;
+                    controler.AddListener(clientID);
+                }
+            }
         }
     }
 }

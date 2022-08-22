@@ -39,18 +39,18 @@
 
         internal void HttpRequest(int clientID, Http.Request request) { OnHttpRequest(clientID, request); }
         /// <summary>
-        /// Function called when the client receive an http request
+        /// Function called when the client receive an HTTP request
         /// </summary>
         /// <param name="clientID">ID of the client</param>
-        /// <param name="request">Http request received</param>
+        /// <param name="request">HTTP request received</param>
         protected virtual void OnHttpRequest(int clientID, Http.Request request) {}
 
         internal void HttpResponse(int clientID, Http.Response response) { OnHttpResponse(clientID, response);  }
         /// <summary>
-        /// Function called when the client receive an http response
+        /// Function called when the client receive an HTTP response
         /// </summary>
         /// <param name="clientID">ID of the client</param>
-        /// <param name="response">Http response received</param>
+        /// <param name="response">HTTP response received</param>
         protected virtual void OnHttpResponse(int clientID, Http.Response response) {}
     }
 }

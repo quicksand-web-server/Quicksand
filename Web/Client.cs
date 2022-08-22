@@ -23,9 +23,9 @@ namespace Quicksand.Web
         /// </summary>
         /// <param name="listener">Client listener</param>
         /// <param name="ip">IP of the server to connect to</param>
-        /// <param name="port">Port of the server to connect to</param>
+        /// <param name="port">Port of the server to connect to (80 by default)</param>
         /// <param name="id">ID of the client (0 by default)</param>
-        public Client(AClientListener listener, string ip, int port, int id = 0)
+        public Client(AClientListener listener, string ip, int port = 80, int id = 0)
         {
             m_IP = ip;
             m_Port = port;
@@ -58,12 +58,17 @@ namespace Quicksand.Web
                 return false;
             try
             {
-                IPHostEntry ipHostInfo = Dns.GetHostEntry(m_IP);
-                IPAddress ipAddress = ipHostInfo.AddressList[0];
-                IPEndPoint endpoint = new(ipAddress, m_Port);
-                m_Socket.Connect(endpoint);
-                StartReceiving();
-                return true;
+                foreach (IPAddress ip in Dns.GetHostEntry(m_IP).AddressList)
+                {
+                    if (ip.AddressFamily == AddressFamily.InterNetwork)
+                    {
+                        IPEndPoint endpoint = new(ip, m_Port);
+                        m_Socket.Connect(endpoint);
+                        StartReceiving();
+                        return true;
+                    }
+                }
+                return false;
             }
             catch { return false; }
         }
@@ -123,7 +128,7 @@ namespace Quicksand.Web
         }
 
         /// <summary>
-        /// Send the given http response to the client
+        /// Send the given HTTP response to the client
         /// </summary>
         /// <param name="response">HTTP response to send to the client</param>
         public void SendResponse(Http.Response? response)
@@ -133,7 +138,7 @@ namespace Quicksand.Web
         }
 
         /// <summary>
-        /// Send the given http request to the client
+        /// Send the given HTTP request to the client
         /// </summary>
         /// <param name="request">HTTP request to send to the server</param>
         public void SendRequest(Http.Request? request)
@@ -167,7 +172,8 @@ namespace Quicksand.Web
                 m_ReaderWriter = new WebSocket.Protocol(m_Socket, this);
                 m_IsWebSocket = true;
             }
-            m_Listener.HttpRequest(m_ID, request);
+            else
+                m_Listener.HttpRequest(m_ID, request);
         }
 
         internal void OnResponse(Http.Response response)
@@ -178,7 +184,8 @@ namespace Quicksand.Web
                 m_ReaderWriter = new WebSocket.Protocol(m_Socket, this);
                 m_IsWebSocket = true;
             }
-            m_Listener.HttpResponse(m_ID, response);
+            else
+                m_Listener.HttpResponse(m_ID, response);
         }
     }
 }

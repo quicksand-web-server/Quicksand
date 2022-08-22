@@ -3,55 +3,127 @@ using System.Text.RegularExpressions;
 
 namespace Quicksand.Web.Html
 {
+    /// <summary>
+    /// Rule use to check if the value given to an attribute is valid or not
+    /// </summary>
     public abstract class AttributeValidationRule
     {
-        protected readonly bool m_IsEditable = false;
+        private readonly bool m_IsEditable = false;
 
-        public AttributeValidationRule(bool isEditable)
-        {
-            m_IsEditable = isEditable;
-        }
+        /// <summary>
+        /// Constructor
+        /// </summary>
+        /// <param name="isEditable">Specify if this rule can be edited in the <seealso cref="ElementBase"/></param>
+        protected AttributeValidationRule(bool isEditable) { m_IsEditable = isEditable; }
 
+        /// <returns>True if this attribute validation rule can be edited in the <seealso cref="ElementBase"/></returns>
         public bool IsEditable() { return m_IsEditable; }
-        public abstract bool IsValid(object value);
+
+        /// <param name="value">Value of the attribute to check</param>
+        /// <returns>True if the value follow the rule</returns>
+        public abstract bool IsValid(string value);
     }
 
-    public class CallbackRule: AttributeValidationRule
+    /// <summary>
+    /// Rule to check if the attribute value is a boolean string (empty is true)
+    /// </summary>
+    public class IsBool : AttributeValidationRule
     {
-        public delegate bool Callback(object value);
-        private readonly Callback m_Callback;
+        /// <summary>
+        /// Constructor
+        /// </summary>
+        /// <param name="isEditable">Specify if this rule can be edited (false by default)</param>
+        public IsBool(bool isEditable = false) : base(isEditable) { }
 
-        public CallbackRule(Callback callback, bool isEditable = false): base(isEditable)
-        {
-            m_Callback = callback;
-        }
-
-        public override bool IsValid(object value) { return m_Callback(value); }
+        /// <param name="value">Value of the attribute to check</param>
+        /// <returns>True if the value is an empty string (true in HTML attributes)</returns>
+        public override bool IsValid(string value) { return value.Length == 0; }
     }
 
-    public class IsTypeRule<T>: AttributeValidationRule
+    /// <summary>
+    /// Rule to check if the attribute value is a char
+    /// </summary>
+    public class IsChar: AttributeValidationRule
     {
-        public IsTypeRule(bool isEditable = false): base(isEditable) { }
-        public override bool IsValid(object value) { return value is T; }
+        /// <summary>
+        /// Constructor
+        /// </summary>
+        /// <param name="isEditable">Specify if this rule can be edited (false by default)</param>
+        public IsChar(bool isEditable = false) : base(isEditable) { }
+
+        /// <param name="value">Value of the attribute to check</param>
+        /// <returns>True if the value is composed of one character</returns>
+        public override bool IsValid(string value) { return value.Length == 1; }
     }
 
+    /// <summary>
+    /// Rule to check if the attribute value is a integer
+    /// </summary>
+    public class IsInt : AttributeValidationRule
+    {
+        /// <summary>
+        /// Constructor
+        /// </summary>
+        /// <param name="isEditable">Specify if this rule can be edited (false by default)</param>
+        public IsInt(bool isEditable = false) : base(isEditable) { }
+
+        /// <param name="value">Value of the attribute to check</param>
+        /// <returns>True if the value is composed of one character</returns>
+        public override bool IsValid(string value) { return int.TryParse(value, out var _); }
+    }
+
+    /// <summary>
+    /// Rule to check if the attribute value is a non empty string
+    /// </summary>
     public class IsNonEmptyStringRule : AttributeValidationRule
     {
+        /// <summary>
+        /// Constructor
+        /// </summary>
+        /// <param name="isEditable">Specify if this rule can be edited (false by default)</param>
         public IsNonEmptyStringRule(bool isEditable = false) : base(isEditable) { }
-        public override bool IsValid(object value){ return value is string str && !string.IsNullOrWhiteSpace(str); }
+
+        /// <param name="value">Value of the attribute to check</param>
+        /// <returns>True if the value is a non empty string</returns>
+        public override bool IsValid(string value){ return !string.IsNullOrWhiteSpace(value); }
     }
 
+    /// <summary>
+    /// Rule to check if the attribute value is a non empty string without space
+    /// </summary>
+    public class IsNonEmptyWordRule : AttributeValidationRule
+    {
+        /// <summary>
+        /// Constructor
+        /// </summary>
+        /// <param name="isEditable">Specify if this rule can be edited (false by default)</param>
+        public IsNonEmptyWordRule(bool isEditable = false) : base(isEditable) { }
+
+        /// <param name="value">Value of the attribute to check</param>
+        /// <returns>True if the value is a non empty string without space</returns>
+        public override bool IsValid(string value) { return !string.IsNullOrWhiteSpace(value) && !value.Contains(' '); }
+    }
+
+    /// <summary>
+    /// Rule to check if the attribute value is a valid lang
+    /// </summary>
     public class IsLangRule: AttributeValidationRule
     {
-        public IsLangRule(bool isEditable = false) : base(isEditable) { }
+        /// <summary>
+        /// Constructor
+        /// </summary>
+        /// <param name="isEditable">Specify if this rule can be edited (false by default)</param>
+        public IsLangRule(bool isEditable = false) : base(isEditable) {}
 
-        public override bool IsValid(object value)
+        /// <param name="value">Value of the attribute to check</param>
+        /// <returns>True if the value is a valid lang info</returns>
+        public override bool IsValid(string value)
         {
-            if (value is string str && !string.IsNullOrWhiteSpace(str))
+            if (!string.IsNullOrWhiteSpace(value))
             {
                 try
                 {
-                    RegionInfo info = new(str);
+                    RegionInfo info = new(value);
                     return true;
                 }
                 catch { }
@@ -60,49 +132,54 @@ namespace Quicksand.Web.Html
         }
     }
 
+    /// <summary>
+    /// Rule to check if the attribute value match a regex
+    /// </summary>
     public class IsMatchingRegexRule : AttributeValidationRule
     {
         private readonly Regex m_Regex;
 
-        public IsMatchingRegexRule(string regex, bool isEditable = false) : base(isEditable)
-        {
-            m_Regex = new(regex);
-        }
+        /// <summary>
+        /// Constructor
+        /// </summary>
+        /// <param name="regex">Regex to match</param>
+        /// <param name="isEditable">Specify if this rule can be edited (false by default)</param>
+        public IsMatchingRegexRule(string regex, bool isEditable = false) : base(isEditable) { m_Regex = new(regex); }
 
-        public override bool IsValid(object value)
-        {
-            return value is string str && m_Regex.IsMatch(str);
-        }
+        /// <param name="value">Value of the attribute to check</param>
+        /// <returns>True if the value is a string that match the regex</returns>
+        public override bool IsValid(string value) { return m_Regex.IsMatch(value); }
     }
 
-    public class IsInListRule<T> : AttributeValidationRule
+    /// <summary>
+    /// Rule to check if the attribute value is in a list
+    /// </summary>
+    public class IsInListRule : AttributeValidationRule
     {
-        private readonly List<T> m_List;
+        private readonly List<string> m_List;
 
-        public IsInListRule(List<T> list, bool isEditable = false) : base(isEditable)
-        {
-            m_List = list;
-        }
+        /// <summary>
+        /// Constructor
+        /// </summary>
+        /// <param name="list">List of allowed values</param>
+        /// <param name="isEditable">Specify if this rule can be edited (false by default)</param>
+        public IsInListRule(List<string> list, bool isEditable = false) : base(isEditable) { m_List = list; }
 
-        public override bool IsValid(object value)
-        {
-            return value is T obj && m_List.Contains(obj);
-        }
+        /// <param name="value">Value of the attribute to check</param>
+        /// <returns>True if the value is in the given list</returns>
+        public override bool IsValid(string value) { return m_List.Contains(value); }
     }
 
-    public class EventAttributeRule : AttributeValidationRule
+    internal class EventAttributeRule : AttributeValidationRule
     {
         private readonly bool m_IsEventAllowed = false;
-        public EventAttributeRule(bool isEventAllowed): base(false)
-        {
-            m_IsEventAllowed = isEventAllowed;
-        }
+        public EventAttributeRule(bool isEventAllowed): base(false) { m_IsEventAllowed = isEventAllowed; }
+        public override bool IsValid(string value) { return m_IsEventAllowed && !string.IsNullOrWhiteSpace(value); }
+    }
 
-        public override bool IsValid(object value)
-        {
-            if (m_IsEventAllowed)
-                return value is string str && !string.IsNullOrWhiteSpace(str);
-            return false;
-        }
+    internal class DataAttributeRule : AttributeValidationRule
+    {
+        public DataAttributeRule(): base(false) {}
+        public override bool IsValid(string value) { return true; }
     }
 }

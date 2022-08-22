@@ -3,7 +3,9 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.2.32630.192
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Quicksand", "Quicksand.csproj", "{6315F6CC-A176-4627-995F-8970264BF75E}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Quicksand", "Quicksand.csproj", "{6315F6CC-A176-4627-995F-8970264BF75E}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Test", "..\Test\Test.csproj", "{EB8A79E2-CCAC-49E4-A4A0-1FFA0A0DD14C}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -15,6 +17,10 @@ Global
 		{6315F6CC-A176-4627-995F-8970264BF75E}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{6315F6CC-A176-4627-995F-8970264BF75E}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{6315F6CC-A176-4627-995F-8970264BF75E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{EB8A79E2-CCAC-49E4-A4A0-1FFA0A0DD14C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{EB8A79E2-CCAC-49E4-A4A0-1FFA0A0DD14C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{EB8A79E2-CCAC-49E4-A4A0-1FFA0A0DD14C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{EB8A79E2-CCAC-49E4-A4A0-1FFA0A0DD14C}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

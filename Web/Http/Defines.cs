@@ -1,16 +1,16 @@
 ﻿namespace Quicksand.Web.Http
 {
     /// <summary>
-    /// Contains static method and variables used by Http server and client
+    /// Contains static method and variables used by HTTP server and client
     /// </summary>
     public static class Defines
     {
         /// <summary>
-        /// Http CRLF "\r\n"
+        /// HTTP CRLF "\r\n"
         /// </summary>
         public static readonly string CRLF = "\r\n";
         /// <summary>
-        /// Http version of the server "HTTP/1.1"
+        /// HTTP version of the server "HTTP/1.1"
         /// </summary>
         public static readonly string VERSION = "HTTP/1.1";
 
@@ -92,12 +92,13 @@
         /// Create an HTTP response with the appropriate message depending on the status
         /// </summary>
         /// <param name="status">Response status code</param>
-        /// <param name="body">Html body to display on status</param>
+        /// <param name="body">HTML body to display on status</param>
+        /// <param name="contentType">MIME type of the content to send (empty by default)</param>
         /// <returns>A new response initialized with appropriate status code and message</returns>
-        public static Response? NewResponse(int status, string body)
+        public static Response? NewResponse(int status, string body, string contentType = "")
         {
             if (STATUS.TryGetValue(status, out var statusMessage))
-                return new(VERSION, status, statusMessage, body);
+                return new(status, statusMessage, body, contentType);
             return null;
         }
 
@@ -105,38 +106,39 @@
         /// Create an HTTP response with the appropriate message and body depending on the status
         /// </summary>
         /// <param name="status">Response status code</param>
+        /// <param name="contentType">MIME type of the content to send (empty by default)</param>
         /// <returns>A new response initialized with appropriate status code, message and body</returns>
-        public static Response? NewResponse(int status)
+        public static Response? NewResponse(int status, string contentType = "")
         {
             if (STATUS.TryGetValue(status, out var statusMessage))
             {
                 if (STATUS_BODY.TryGetValue(status, out var body))
-                    return new(VERSION, status, statusMessage, body);
+                    return new(status, statusMessage, body, contentType);
                 else
-                    return new(VERSION, status, statusMessage, "");
+                    return new(status, statusMessage, "", contentType);
             }
             return null;
         }
 
         /// <summary>
-        /// Set the html body for a specific status code
+        /// Set the HTML body for a specific status code
         /// </summary>
         /// <param name="status">Status to set the body for</param>
-        /// <param name="body">Html body to display on status</param>
+        /// <param name="body">HTML body to display on status</param>
         public static void SetStatusBody(int status, string body)
         {
             STATUS_BODY[status] = body;
         }
 
         /// <summary>
-        /// Set the html body for a specific status code with the content of a file
+        /// Set the HTML body for a specific status code with the content of a file
         /// </summary>
         /// <param name="status">Status to set the body for</param>
-        /// <param name="path">Path to the html body to display on status</param>
+        /// <param name="path">Path to the HTML body to display on status</param>
         public static void SetStatusBodyFromFile(int status, string path)
         {
-            if (File.Exists(path))
-            STATUS_BODY[status] = File.ReadAllText(path);
+            if (System.IO.File.Exists(path))
+                STATUS_BODY[status] = System.IO.File.ReadAllText(path);
         }
     }
 }

@@ -2,14 +2,21 @@
 
 namespace Quicksand.Web.Http
 {
+    /// <summary>
+    /// An HTTP request
+    /// </summary>
     public class Request
     {
         private readonly string m_Method;
         private readonly string m_Path;
         private readonly string m_Version;
         private readonly HeaderFields m_HeaderFields; //All header fields value will be stored as string in request
-        private readonly string m_Body = "";
+        private string m_Body = "";
 
+        /// <summary>
+        /// Constructor
+        /// </summary>
+        /// <param name="request">Content of the received HTTP request</param>
         public Request(string request)
         {
             List<string> attributes = request.Split(new string[] { Defines.CRLF }, StringSplitOptions.None).ToList();
@@ -21,15 +28,34 @@ namespace Quicksand.Web.Http
             m_HeaderFields = new(attributes);
         }
 
-        public Request(Request request, string body)
+        internal void SetBody(string body)
         {
-            m_Method = request.Method;
-            m_Path = request.Path;
-            m_Version = request.Version;
-            m_HeaderFields = new(request.m_HeaderFields);
             m_Body = body;
+            if (m_Body.Length > 0)
+            {
+                m_HeaderFields["Accept-Ranges"] = "bytes";
+                m_HeaderFields["Content-Length"] = Encoding.UTF8.GetBytes(m_Body).Length;
+            }
         }
 
+        /// <summary>
+        /// Constructor
+        /// </summary>
+        /// <param name="method">Method of the request</param>
+        /// <param name="path">URL targeted by the request</param>
+        /// <param name="body">Body of the request</param>
+        public Request(string method, string path, string body = "")
+        {
+            m_Method = method;
+            m_Path = path;
+            m_Version = Defines.VERSION;
+            m_HeaderFields = new();
+            SetBody(body);
+        }
+
+
+
+        /// <returns>The formatted request</returns>
         public override string ToString()
         {
             StringBuilder builder = new();
@@ -44,12 +70,34 @@ namespace Quicksand.Web.Http
             return builder.ToString();
         }
 
+        /// <summary>
+        /// Check if the request contains the given header field
+        /// </summary>
+        /// <param name="headerFieldName">Name of the header field to search</param>
+        /// <returns>True if the header field exists</returns>
         public bool HaveHeaderField(string headerFieldName) { return m_HeaderFields.HaveHeaderField(headerFieldName); }
 
+        /// <summary>
+        /// Method of the request
+        /// </summary>
         public string Method { get => m_Method; }
+        /// <summary>
+        /// URL targeted by the request
+        /// </summary>
         public string Path { get => m_Path; }
+        /// <summary>
+        /// HTTP version of the request
+        /// </summary>
         public string Version { get => m_Version; }
+        /// <summary>
+        /// Body of the request
+        /// </summary>
         public string Body { get => m_Body; }
+        /// <summary>
+        /// Header field accessors
+        /// </summary>
+        /// <param name="key">Name of the header field to get/set</param>
+        /// <returns>The content of the header field</returns>
         public object this[string key]
         {
             get => m_HeaderFields[key];
