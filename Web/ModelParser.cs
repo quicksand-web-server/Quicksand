@@ -411,7 +411,7 @@ namespace Quicksand.Web
                 _ = childInfo.Name switch
                 {
                     "title" => AddTitle(ref head, childInfo),
-                    "style" => false, //TODO
+                    "style" => false, //TODO Add stylesheet implementation
                     "base" => AddBase(ref head, childInfo),
                     "link" => AddLink(ref head, childInfo),
                     "meta" => AddMeta(ref head, childInfo),

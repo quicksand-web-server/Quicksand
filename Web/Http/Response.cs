@@ -44,16 +44,21 @@ namespace Quicksand.Web.Http
         /// <param name="statusCode">Status code of the response</param>
         /// <param name="statusMessage">Status message of the response</param>
         /// <param name="body">Body of the response (empty by default)</param>
-        /// <param name="contentType">MIME type of the content to send (empty by default)</param>
-        public Response(int statusCode, string statusMessage, string body = "", string contentType = "")
+        /// <param name="contentType">MIME type of the content to send (null by default)</param>
+        public Response(int statusCode, string statusMessage, string body = "", MIME? contentType = null)
         {
             m_Version = Defines.VERSION;
             m_StatusCode = statusCode;
             m_StatusMessage = statusMessage;
             SetBody(body);
             m_HeaderFields["Server"] = "Quicksand HTTP Server";
-            if (!string.IsNullOrWhiteSpace(body))
-                m_HeaderFields["Content-Type"] = string.Format("{0}; charset=utf-8", contentType);
+            if (!string.IsNullOrWhiteSpace(body) && contentType != null)
+            {
+                if (contentType.HaveParameter())
+                    m_HeaderFields["Content-Type"] = contentType.ToString();
+                else
+                    m_HeaderFields["Content-Type"] = string.Format("{0}; charset=utf-8", contentType);
+            }
         }
 
         /// <returns>The formatted request</returns>

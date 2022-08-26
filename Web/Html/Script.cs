@@ -29,7 +29,7 @@
         /// Set the content of the script
         /// </summary>
         /// <param name="content">Content of the script</param>
-        public void SetScriptContent(string content) { AddContent(content); }
+        public void SetScriptContent(string content) { AddContent(content, -1, true); }
         /// <summary>
         /// Specifies that the script is downloaded in parallel to parsing the page, and executed as soon as it is available (before parsing completes) (only for external scripts)
         /// </summary>

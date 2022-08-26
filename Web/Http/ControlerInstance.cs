@@ -4,7 +4,7 @@
     {
         private readonly IControlerBuilder m_ControlerBuilder;
 
-        internal ControlerInstance(DelegateControlerBuilder.Delegate controlerBuilder, bool singleInstance)
+        internal ControlerInstance(DelegateControlerBuilder.Delegate controlerBuilder, bool singleInstance): base()
         {
             if (singleInstance)
                 m_ControlerBuilder = new DelegateSingletonControlerBuilder(controlerBuilder);
@@ -12,21 +12,19 @@
                 m_ControlerBuilder = new DelegateControlerBuilder(controlerBuilder);
         }
 
-        internal ControlerInstance(IControlerBuilder controlerBuilder)
+        internal ControlerInstance(IControlerBuilder controlerBuilder): base()
         {
             m_ControlerBuilder = controlerBuilder;
         }
 
-        internal override sealed void OnRequest(int clientID, Request request)
+        protected override void Get(int clientID, Request request)
         {
             Controler? newControler = m_ControlerBuilder.Build();
             if (newControler != null)
             {
                 AddControler(newControler);
-                newControler.OnRequest(clientID, request);
+                newControler.CallGet(clientID, request);
             }
         }
-
-        protected override void Get(int clientID, Request request) {} //No need to define it as OnRequest is overriden
     }
 }

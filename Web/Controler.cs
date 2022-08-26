@@ -1,5 +1,6 @@
 ﻿using Quicksand.Web.Html;
 using System.Diagnostics;
+using System.Text;
 
 namespace Quicksand.Web
 {
@@ -20,11 +21,79 @@ namespace Quicksand.Web
         private bool m_CanBeDeleted = true;
         private bool m_ToDelete = true;
 
+        private static string Minify(string javascript)
+        {
+            StringBuilder builder = new();
+            bool isInString = false;
+            bool isInComment = false;
+            char commentChar = '\0';
+            char stringChar = '\0';
+            char lastChar = '\0';
+            foreach (char c in javascript)
+            {
+                if (isInComment)
+                {
+                    if ((commentChar == '/' && c == '\n') || (commentChar == '*' && lastChar == '*' && c == '/'))
+                        isInComment = false;
+                }
+                else
+                {
+                    if (isInString)
+                    {
+                        builder.Append(c);
+                        if (c == stringChar)
+                            isInString = false;
+                    }
+                    else if (c == '"' || c == '\'')
+                    {
+                        builder.Append(c);
+                        isInString = true;
+                        stringChar = c;
+                    }
+                    else if (lastChar == '/' && (c == '*' || c == '/'))
+                    {
+                        isInComment = true;
+                        commentChar = c;
+                    }
+                    else
+                        builder.Append(c);
+                }
+                lastChar = c;
+            }
+            string purifiedScript = builder.ToString().Trim();
+            builder.Clear();
+            string[] scriptLines = purifiedScript.Split('\n');
+            foreach (string line in scriptLines)
+            {
+                string trimmedLine = line.Trim();
+                if (trimmedLine.Length > 0)
+                {
+                    char lastBuilderChar = '\0';
+                    if (builder.Length != 0)
+                        lastBuilderChar = builder[^1];
+                    if (trimmedLine[0] == '{' ||
+                        trimmedLine[0] == '}' ||
+                        lastBuilderChar == '\0' ||
+                        lastBuilderChar == ';' ||
+                        lastBuilderChar == '{' ||
+                        lastBuilderChar == '}' ||
+                        lastBuilderChar == ')')
+                        builder.Append(trimmedLine);
+                    else
+                    {
+                        builder.Append(' ');
+                        builder.Append(trimmedLine);
+                    }
+                }
+            }
+            return builder.ToString();
+        }
+
         /// <summary>
         /// Constructor
         /// </summary>
         /// <param name="model">The model to use</param>
-        protected Controler(Model? model)
+        protected Controler(Model? model): base()
         {
             if (model == null)
                 m_Model = new("");
@@ -32,7 +101,7 @@ namespace Quicksand.Web
             {
                 m_Model = model;
                 Script framework = new();
-                framework.SetSrc("/framework.js"); //TODO Use a fixed URL
+                framework.SetScriptContent(Minify(Properties.Resources.quicksand_framework));
                 m_Model.GetHead().AddScript(framework);
                 m_Model.GetBody().SetAttribute("onload", string.Format("QuickSandFramework.main('{0}')", m_ID));
                 AfterGenerateModel();
@@ -87,7 +156,26 @@ namespace Quicksand.Web
 
         internal void WebsocketMessage(int clientID, string message)
         {
-            OnWebsocketMessage(clientID, message);
+            if (message.StartsWith("Anchor: "))
+            {
+                Dictionary<string, string> anchorParameters = new();
+                string anchor = "";
+                string anchorContent = message["Anchor: ".Length..];
+                if (anchorContent.StartsWith('#'))
+                    anchorContent = anchorContent[1..];
+                string[] parameters = anchorContent.Split('&');
+                foreach (string parameter in parameters)
+                {
+                    string[] tmp = parameter.Split('=');
+                    if (tmp.Length == 2)
+                        anchorParameters[tmp[0]] = tmp[1];
+                    else if (tmp.Length == 1)
+                        anchor = tmp[0];
+                }
+                OnAnchorParameters(clientID, anchor, anchorParameters);
+            }
+            else
+                OnWebsocketMessage(clientID, message);
         }
 
         /// <summary>
@@ -95,7 +183,15 @@ namespace Quicksand.Web
         /// </summary>
         /// <param name="clientID">ID of the client</param>
         /// <param name="message">Received message from the websocket</param>
-        protected virtual void OnWebsocketMessage(int clientID, string message) {}
+        protected virtual void OnWebsocketMessage(int clientID, string message) { }
+
+        /// <summary>
+        /// Function called when the resource receive anchor parameters from websocket message
+        /// </summary>
+        /// <param name="clientID">ID of the client</param>
+        /// <param name="anchor">Received anchor name from the websocket (can be empty)</param>
+        /// <param name="parameters">Received anchor parameters from the websocket (can be empty)</param>
+        protected virtual void OnAnchorParameters(int clientID, string anchor, Dictionary<string, string> parameters) { }
 
         /// <summary>
         /// Constructor
@@ -114,14 +210,32 @@ namespace Quicksand.Web
         /// When called it will send an HTTP 200 response with the generated HTML content. If document hasn't been initialized it will send a HTTP 404 error
         /// </remarks>
         /// <param name="clientID">ID of the client</param>
-        /// <param name="request">Received HTTP request received from the client</param>
-        protected override void Get(int clientID, Http.Request request)
+        /// <param name="request">HTTP request received from the client</param>
+        protected sealed override void Get(int clientID, Http.Request request)
         {
             if (m_Model != null)
-                SendResponse(clientID, Http.Defines.NewResponse(200, m_Model.ToString(), "text/html"));
+            {
+                BeforeGet(clientID, request);
+                SendResponse(clientID, Http.Defines.NewResponse(200, m_Model.ToString(), Http.MIME.TEXT.HTML));
+                AfterGet(clientID, request);
+            }
             else
                 SendResponse(clientID, Http.Defines.NewResponse(404));
         }
+
+        /// <summary>
+        /// Function called before a GET is requested on this controller and a model has been sent
+        /// </summary>
+        /// <param name="clientID">ID of the client</param>
+        /// <param name="request">HTTP request received from the client</param>
+        protected virtual void BeforeGet(int clientID, Http.Request request) { }
+
+        /// <summary>
+        /// Function called after a GET is requested on this controller and a model has been sent
+        /// </summary>
+        /// <param name="clientID">ID of the client</param>
+        /// <param name="request">HTTP request received from the client</param>
+        protected virtual void AfterGet(int clientID, Http.Request request) { }
 
         internal void Update(long deltaTime)
         {

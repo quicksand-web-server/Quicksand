@@ -93,9 +93,9 @@
         /// </summary>
         /// <param name="status">Response status code</param>
         /// <param name="body">HTML body to display on status</param>
-        /// <param name="contentType">MIME type of the content to send (empty by default)</param>
+        /// <param name="contentType">MIME type of the content to send (null by default)</param>
         /// <returns>A new response initialized with appropriate status code and message</returns>
-        public static Response? NewResponse(int status, string body, string contentType = "")
+        public static Response? NewResponse(int status, string body, MIME? contentType = null)
         {
             if (STATUS.TryGetValue(status, out var statusMessage))
                 return new(status, statusMessage, body, contentType);
@@ -106,9 +106,9 @@
         /// Create an HTTP response with the appropriate message and body depending on the status
         /// </summary>
         /// <param name="status">Response status code</param>
-        /// <param name="contentType">MIME type of the content to send (empty by default)</param>
+        /// <param name="contentType">MIME type of the content to send (null by default)</param>
         /// <returns>A new response initialized with appropriate status code, message and body</returns>
-        public static Response? NewResponse(int status, string contentType = "")
+        public static Response? NewResponse(int status, MIME? contentType = null)
         {
             if (STATUS.TryGetValue(status, out var statusMessage))
             {

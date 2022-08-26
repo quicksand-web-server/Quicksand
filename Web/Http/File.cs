@@ -7,13 +7,19 @@
     {
         private readonly string m_Path;
         private readonly string m_Content;
-        private readonly string m_ContentType;
+        private readonly MIME m_ContentType;
 
-        private static System.Text.Encoding GetEncoding(string contentType)
+        private static System.Text.Encoding GetEncoding(MIME contentType)
         {
-            if (contentType == "image/x-icon")
-                return System.Text.Encoding.ASCII;
-            return System.Text.Encoding.UTF8;
+            return contentType.GetMIMEType() switch
+            {
+                "image" => contentType.GetSubType() switch
+                {
+                    "x-icon" => System.Text.Encoding.ASCII,
+                    _ => System.Text.Encoding.UTF8
+                },
+                _ => System.Text.Encoding.UTF8
+            };
         }
 
         /// <summary>
@@ -22,7 +28,7 @@
         /// <param name="path">Path to the file</param>
         /// <param name="contentType">MIME type of the file</param>
         /// <param name="preLoad">Specify if we should load in memory the file content (false by default)</param>
-        public File(string path, string contentType, bool preLoad = false)
+        public File(string path, MIME contentType, bool preLoad = false): base()
         {
             m_Path = path;
             m_ContentType = contentType;
@@ -39,7 +45,7 @@
         /// When called it will send an HTTP 200 response with the file content. If file doesn't exist it will send a HTTP 404 error
         /// </remarks>
         /// <param name="clientID">ID of the client</param>
-        /// <param name="request">Received HTTP request received from the client</param>
+        /// <param name="request">HTTP request received from the client</param>
         protected sealed override void Get(int clientID, Request request)
         {
             if (m_Content.Length > 0)

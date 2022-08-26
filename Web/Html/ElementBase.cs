@@ -373,35 +373,48 @@ namespace Quicksand.Web.Html
         }
 
         /// <summary>
-        /// 
+        /// Add content to the element
         /// </summary>
-        /// <param name="rawElement"></param>
-        /// <param name="pos"></param>
+        /// <param name="rawElement">Raw content to add</param>
+        /// <param name="pos">Position to add the content in the children list</param>
+        /// <param name="rawAdd">Specify if we don't treat the content before adding it (false by default)</param>
         /// <returns></returns>
-        public bool AddContent(string rawElement, int pos = -1)
+        public bool AddContent(string rawElement, int pos = -1, bool rawAdd = false)
         {
             if (m_IsEmptyMarkup || !m_AllowContent)
                 return false;
-            string element = rawElement.Replace("<", "&lt;").Replace(">", "&gt;").Replace("&", "&amp;").Replace("\'", "&apos;").Replace("\"", "&quot;");
             int posToAdd = (pos == -1) ? m_Children.Count : pos;
-            string[] lines = element.Split('\n');
-            int lineIdx = 0;
-            foreach (string line in lines)
+            if (rawAdd)
             {
-                if (lineIdx != 0)
+                if (rawElement.Length > 0)
                 {
-                    AddChild(new LineBreak(), posToAdd);
-                    ++posToAdd;
-                }
-                string trimmedLine = line.Trim();
-                if (trimmedLine.Length > 0)
-                {
-                    m_ModelListener?.OnContentAdded(this, trimmedLine, posToAdd);
-                    m_Children.Insert(posToAdd, new Placeholder(trimmedLine));
+                    m_ModelListener?.OnContentAdded(this, rawElement, posToAdd);
+                    m_Children.Insert(posToAdd, new Placeholder(rawElement));
                     ++m_ContentsCount;
-                    ++posToAdd;
                 }
-                ++lineIdx;
+            }
+            else
+            {
+                string element = rawElement.Replace("<", "&lt;").Replace(">", "&gt;").Replace("&", "&amp;").Replace("\'", "&apos;").Replace("\"", "&quot;");
+                string[] lines = element.Split('\n');
+                int lineIdx = 0;
+                foreach (string line in lines)
+                {
+                    if (lineIdx != 0)
+                    {
+                        AddChild(new LineBreak(), posToAdd);
+                        ++posToAdd;
+                    }
+                    string trimmedLine = line.Trim();
+                    if (trimmedLine.Length > 0)
+                    {
+                        m_ModelListener?.OnContentAdded(this, trimmedLine, posToAdd);
+                        m_Children.Insert(posToAdd, new Placeholder(trimmedLine));
+                        ++m_ContentsCount;
+                        ++posToAdd;
+                    }
+                    ++lineIdx;
+                }
             }
             return true;
         }

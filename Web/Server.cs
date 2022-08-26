@@ -9,6 +9,15 @@ namespace Quicksand.Web
     /// </summary>
     public class Server: AClientListener
     {
+        /// <summary>
+        /// Handle the method from the request on the resource
+        /// </summary>
+        /// <param name="resource">Resource</param>
+        /// <param name="clientID">ID of the client which send the request</param>
+        /// <param name="request">Request to handle</param>
+        /// <returns>True if the method is allowed on the resource and has been handled</returns>
+        public delegate bool MethodHandler(Http.Resource resource, int clientID, Http.Request request);
+
         private readonly Stopwatch m_Watch = new();
         private readonly Socket m_HttpServerSocket;
         private readonly int m_Port;
@@ -16,8 +25,9 @@ namespace Quicksand.Web
         private readonly List<int> m_FreeIdx = new();
         private readonly Dictionary<int, Client> m_Clients = new();
         private readonly Dictionary<int, Controler> m_ClientsControlers = new();
-        private readonly Dictionary<string, Http.Resource> m_Resources = new();
+        private readonly ResourceManager m_Resources = new();
         private readonly Dictionary<string, Controler> m_Controlers = new();
+        private readonly Dictionary<string, MethodHandler> m_MethodHandlers = new();
 
         /// <summary>
         /// Create a Quicksand server on the specified <paramref name="port"/>
@@ -26,6 +36,7 @@ namespace Quicksand.Web
         public Server(int port = 80)
         {
             m_Port = port;
+            m_MethodHandlers["GET"] = (Http.Resource resource, int clientID, Http.Request request) => { resource.CallGet(clientID, request); return true; };
             m_HttpServerSocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
         }
 
@@ -40,7 +51,7 @@ namespace Quicksand.Web
         /// |   -- fileB.txt<br/>
         /// |- fileC.txt<br/>
         /// -- fileD.txt<br/>
-        /// <c> server.AddResource("/test", "myTestDir"); </c><br/>
+        /// <c> server.AddResource("/test", "myTestDir", Http.MIME.TEXT.PLAIN); </c><br/>
         /// Will result in the add of resources:<br/>
         /// /test/dir1/testa.txt<br/>
         /// /test/dir1/testb.txt<br/>
@@ -51,10 +62,16 @@ namespace Quicksand.Web
         /// <param name="path">Path of the file to add</param>
         /// <param name="contentType">MIME type of the content to send</param>
         /// <param name="preLoad">Specify if we should load in memory the file content (false by default)</param>
+        [ObsoleteAttribute("Function will be removed in v0.0.9. Please use AddFile with MIME type instead of string")]
         public void AddResource(string url, string path, string contentType, bool preLoad = false)
         {
             if (File.Exists(path))
-                AddResource(url, new Http.File(path, contentType, preLoad));
+            {
+                Http.MIME? contentMIME = Http.MIME.Parse(contentType);
+                if (contentMIME == null)
+                    return;
+                AddResource(url, new Http.File(path, contentMIME, preLoad), false);
+            }
             else if (Directory.Exists(path))
             {
                 string[] entries = Directory.GetFileSystemEntries(path);
@@ -64,14 +81,28 @@ namespace Quicksand.Web
         }
 
         /// <summary>
+        /// Add file pointed by the path as a resource
+        /// </summary>
+        /// <param name="url">Path of the file in the server. Should start with a /</param>
+        /// <param name="path">Path of the file to add</param>
+        /// <param name="contentType">MIME type of the content to send</param>
+        /// <param name="preLoad">Specify if we should load in memory the file content (false by default)</param>
+        public void AddFile(string url, string path, Http.MIME contentType, bool preLoad = false)
+        {
+            if (File.Exists(path))
+                AddResource(url, new Http.File(path, contentType, preLoad), false);
+        }
+
+        /// <summary>
         /// Add a resource to the server
         /// </summary>
         /// <param name="url">Path of the resource in the server. Should start with a /</param>
         /// <param name="resource">The resource to add</param>
-        public void AddResource(string url, Http.Resource resource)
+        /// <param name="allowBackTrack">Specify if the file allow URL backtracking (/a/b redirect to /a resource if backtrack is enable on /a and /a/b doesn't exist)</param>
+        public void AddResource(string url, Http.Resource resource, bool allowBackTrack = false)
         {
             resource.Init(this);
-            m_Resources[url] = resource;
+            m_Resources.AddResource(url, resource, allowBackTrack);
         }
 
         /// <summary>
@@ -184,8 +215,13 @@ namespace Quicksand.Web
         /// <param name="request">HTTP request received</param>
         protected sealed override void OnHttpRequest(int clientID, Http.Request request)
         {
-            if (m_Resources.TryGetValue(request.Path, out var resource))
-                resource.OnRequest(clientID, request);
+            Http.Resource? resource = m_Resources.GetResource(request.Path);
+            if (resource != null)
+            {
+                if (m_MethodHandlers.TryGetValue(request.Method, out var handler) && handler(resource, clientID, request))
+                    return;
+                SendError(clientID, Http.Defines.NewResponse(405));
+            }
             else
                 SendError(clientID, Http.Defines.NewResponse(404));
         }
