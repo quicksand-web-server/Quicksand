@@ -1,11 +1,11 @@
 class QuickSandFramework
 {
 	static #socket;
-	static #controllerId = '';
+	static #controlerId = '';
 
-	static main(controllerId)
+	static main(controlerId)
 	{
-		QuickSandFramework.#controllerId = controllerId;
+		QuickSandFramework.#controlerId = controlerId;
 		QuickSandFramework.#socket = new WebSocket("ws://" + window.location.host + window.location.pathname);
 		QuickSandFramework.#socket.onopen = QuickSandFramework.#onOpen;
 		QuickSandFramework.#socket.onmessage = QuickSandFramework.#onMessage;
@@ -25,31 +25,31 @@ class QuickSandFramework
 
 	static #onOpen(event)
 	{
-		QuickSandFramework.#socket.send(QuickSandFramework.#controllerId);
+		QuickSandFramework.#socket.send(QuickSandFramework.#controlerId);
 		QuickSandFramework.#socket.send("Anchor: " + window.location.hash);
 	}
 
 	static #onMessage(event)
 	{
-		var data = JSON.parse(event.data);
-		var requests = data["requests"];
-		for (var i = 0; i < requests.length; ++i)
+		let data = JSON.parse(event.data);
+		let requests = data["requests"];
+		for (let i = 0; i < requests.length; ++i)
 		{
-			var request = requests[i];
-			var requestName = request["name"];
+			let request = requests[i];
+			let requestName = request["name"];
 			if (requestName == "attribute-added")
 				document.getElementById(request["id"]).setAttribute(request["attribute"], request["value"]);
 			else if (requestName == "attribute-removed")
 				document.getElementById(request["id"]).removeAttribute(request["attribute"]);
 			else if (requestName == "child-added")
 			{
-				var parent = document.getElementById(request["parentID"]);
-				var child = document.createElement(request["childType"]);
+				let parent = document.getElementById(request["parentID"]);
+				let child = document.createElement(request["childType"]);
 				
-				var childAttributes = request["childAttributes"];
-				for (var n = 0; n < childAttributes.length; ++n)
+				let childAttributes = request["childAttributes"];
+				for (let n = 0; n < childAttributes.length; ++n)
 				{
-					var childAttribute = childAttributes[n];
+					let childAttribute = childAttributes[n];
 					child.setAttribute(childAttribute["key"], childAttribute["value"]);
 				}
 				
@@ -57,12 +57,12 @@ class QuickSandFramework
 			}
 			else if (requestName == "child-removed")
 			{
-				var parent = document.getElementById(request["parentID"]);
+				let parent = document.getElementById(request["parentID"]);
 				parent.removeChild(parent.children[request["position"]]);
 			}
 			else if (requestName == "content-added")
 			{
-				var parent = document.getElementById(request["parentID"]);
+				let parent = document.getElementById(request["parentID"]);
 				parent.insertBefore(document.createTextNode(request["content"]), parent.children[request["position"]]);
 			}
 		}
@@ -78,6 +78,6 @@ class QuickSandFramework
 
 	static #onError(error)
 	{
-		alert(`[error] ${error.message}`);
+		alert("[error] ${error.message}");
 	}
-};
+}
