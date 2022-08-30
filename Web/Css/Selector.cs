@@ -12,10 +12,10 @@ namespace Quicksand.Web.Css
     /// </summary>
     public class Selector
     {
-        private static Regex ID_REGEX = new("^#[A-Za-z]+");
-        private static Regex CLASS_REGEX = new("^\\.[A-Za-z]+");
-        private static Regex ELEMENT_REGEX = new("^[A-Za-z]+");
-        private static Regex ELEMENT_CLASS_REGEX = new("^[A-Za-z]+\\.[A-Za-z]+");
+        private readonly static Regex ID_REGEX = new(@"^#[A-Za-z0-9\-_]+");
+        private readonly static Regex CLASS_REGEX = new(@"^\.[A-Za-z0-9\-_]+");
+        private readonly static Regex ELEMENT_REGEX = new("^[A-Za-z]+");
+        private readonly static Regex ELEMENT_CLASS_REGEX = new(@"^[A-Za-z]+\.[A-Za-z]+");
 
         /// <summary>
         /// Parse the given string and return the <seealso cref="Selector"/> corresponding

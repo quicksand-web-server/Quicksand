@@ -36,7 +36,7 @@ namespace Quicksand.Web.Js
 
         internal bool AddVariable(string variableName)
         {
-            if (Regex.IsMatch(variableName, "^[a-zA-Z0-9]*$"))
+            if (Regex.IsMatch(variableName, Script.VARIABLE_NAME_PATTERN))
             {
                 m_Variables.Add(new(variableName));
                 return true;
@@ -47,7 +47,7 @@ namespace Quicksand.Web.Js
         internal CRTP AddVariableInstruction(VariableDeclaration instruction)
         {
             Variable variable = instruction.GetVariable();
-            if (Regex.IsMatch(variable.GetName(), "^[a-zA-Z0-9]*$"))
+            if (Regex.IsMatch(variable.GetName(), Script.VARIABLE_NAME_PATTERN))
             {
                 m_Variables.Add(instruction.GetVariable());
                 m_Instructions.Add(instruction);

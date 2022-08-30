@@ -10,7 +10,7 @@ namespace Quicksand.Web.Js
             private readonly StringBuilder m_Builder = new();
             private readonly bool m_Minify;
             private readonly bool m_Empty;
-            private readonly List<Tuple<string, uint>> m_Variables = new();
+            private readonly Dictionary<string, uint> m_Variables = new();
             private Scope? m_Scope = null;
             private readonly int m_Tab;
 
@@ -18,42 +18,123 @@ namespace Quicksand.Web.Js
             {
                 if (m_Minify)
                 {
-                    //TODO Improve minify of line with string in it
-                    foreach (Tuple<string, uint> variable in m_Variables)
+                    StringBuilder lineBuilder = new();
+                    int n = 0;
+                    char lastChar = '\0';
+                    char stringOpen = '\0';
+                    bool inString = false;
+                    string possibleVariableName = "";
+                    bool inVariableName = true;
+                    foreach (char c in line)
                     {
-                        string minifiedName;
-                        uint minifiedIdx = variable.Item2;
-                        if (minifiedIdx != 0)
+                        if (inVariableName)
                         {
-                            minifiedName = "";
-                            while (minifiedIdx > 0)
+                            if (c != '-' && c != '_' && !(c >= 'a' && c <= 'z') && !(c >= 'A' && c <= 'Z') && !(c >= '0' && c <= '9'))
                             {
-                                uint modulo = (minifiedIdx - 1) % 26;
-                                minifiedName = Convert.ToChar('A' + modulo) + minifiedName;
-                                minifiedIdx = (minifiedIdx - modulo) / 26;
+                                if (m_Variables.TryGetValue(possibleVariableName, out var idx))
+                                {
+                                    string minifiedName;
+                                    uint minifiedIdx = idx;
+                                    if (minifiedIdx != 0)
+                                    {
+                                        minifiedName = "";
+                                        while (minifiedIdx > 0)
+                                        {
+                                            uint modulo = (minifiedIdx - 1) % 26;
+                                            minifiedName = Convert.ToChar('A' + modulo) + minifiedName;
+                                            minifiedIdx = (minifiedIdx - modulo) / 26;
+                                        }
+                                        if (possibleVariableName[0] == '#')
+                                            minifiedName = '#' + minifiedName;
+                                    }
+                                    else
+                                        minifiedName = possibleVariableName;
+                                    lineBuilder.Append(minifiedName);
+                                    inVariableName = false;
+                                    possibleVariableName = "";
+                                }
+                                else
+                                {
+                                    lineBuilder.Append(possibleVariableName);
+                                    possibleVariableName = "";
+                                    if (c == '#')
+                                        possibleVariableName = "#";
+                                    else if (!inString && (c == '"' || c == '`' || c == '\''))
+                                    {
+                                        stringOpen = c;
+                                        inString = true;
+                                        inVariableName = false;
+                                        possibleVariableName = "";
+                                    }
+                                    else if (inString && c == stringOpen)
+                                        inString = false;
+                                }
+                                if (c != '#')
+                                    lineBuilder.Append(c);
                             }
-                            if (variable.Item1[0] == '#')
-                                minifiedName = '#' + minifiedName;
+                            else
+                                possibleVariableName += c;
+                        }
+                        else if (inString)
+                        {
+                            if (c == stringOpen)
+                            {
+                                lineBuilder.Append(c);
+                                inString = false;
+                            }
+                            else
+                            {
+                                if (lastChar == '$' && c == '{')
+                                    inVariableName = true;
+                                lineBuilder.Append(c);
+                            }
+                        }
+                        else if (c == '"' || c == '`' || c == '\'')
+                        {
+                            stringOpen = c;
+                            inString = true;
+                            lineBuilder.Append(c);
+                        }
+                        else if (c != '-' && c != '_' && !(c >= 'a' && c <= 'z') && !(c >= 'A' && c <= 'Z') && !(c >= '0' && c <= '9'))
+                        {
+                            if (c == '#')
+                                possibleVariableName = "#";
+                            else
+                                lineBuilder.Append(c);
+                            inVariableName = true;
                         }
                         else
-                            minifiedName = variable.Item1;
-                        StringBuilder builder = new();
-                        string ret = line;
-                        string regexValue = string.Format("(^|[^a-zA-Z0-9])({0})([^a-zA-Z0-9]|$)", variable.Item1);
-                        Match match = Regex.Match(ret, regexValue);
-                        while (match.Success)
-                        {
-                            if (match.Index != 0)
-                                builder.Append(ret[..(match.Index + 1)]);
-                            builder.Append(minifiedName);
-                            if ((match.Index + match.Value.Length) != ret.Length)
-                                builder.Append(match.Value[^1]);
-                            ret = ret[(match.Index + match.Value.Length)..];
-                            match = Regex.Match(ret, regexValue);
-                        }
-                        builder.Append(ret);
-                        line = builder.ToString();
+                            lineBuilder.Append(c);
+                        ++n;
+                        lastChar = c;
                     }
+
+                    if (inVariableName)
+                    {
+                        if (m_Variables.TryGetValue(possibleVariableName, out var idx))
+                        {
+                            string minifiedName;
+                            uint minifiedIdx = idx;
+                            if (minifiedIdx != 0)
+                            {
+                                minifiedName = "";
+                                while (minifiedIdx > 0)
+                                {
+                                    uint modulo = (minifiedIdx - 1) % 26;
+                                    minifiedName = Convert.ToChar('A' + modulo) + minifiedName;
+                                    minifiedIdx = (minifiedIdx - modulo) / 26;
+                                }
+                                if (possibleVariableName[0] == '#')
+                                    minifiedName = '#' + minifiedName;
+                            }
+                            else
+                                minifiedName = possibleVariableName;
+                            lineBuilder.Append(minifiedName);
+                        }
+                        else
+                            lineBuilder.Append(possibleVariableName);
+                    }
+                    return lineBuilder.ToString();
                 }
                 return line;
             }
@@ -84,12 +165,12 @@ namespace Quicksand.Web.Js
 
             private void AppendInstructionLine(string instruction) => AppendLine(string.Format("{0};", Minify(instruction)));
 
-            public Scope(string scopeType, string scopeParam, List<Variable> variables, List<Tuple<string, uint>> parentVariables, bool minify, int tab, bool empty)
+            public Scope(string scopeType, string scopeParam, List<Variable> variables, Dictionary<string, uint> parentVariables, bool minify, int tab, bool empty)
             {
                 m_Minify = minify;
                 m_Empty = empty;
                 foreach (var parentVariable in parentVariables)
-                    m_Variables.Add(new(parentVariable.Item1, parentVariable.Item2));
+                    m_Variables[parentVariable.Key] = parentVariable.Value;
                 AddVariables(variables);
                 m_Tab = tab - 1; //Assigning to -1 for the scope
 
@@ -107,9 +188,9 @@ namespace Quicksand.Web.Js
                 foreach (Variable variable in variables)
                 {
                     if (variable.IsMinifyable())
-                        m_Variables.Add(new(variable.GetName(), minifyIdx++));
+                        m_Variables[variable.GetName()] = minifyIdx++;
                     else
-                        m_Variables.Add(new(variable.GetName(), 0));
+                        m_Variables[variable.GetName()] = 0;
                 }
             }
 
@@ -153,9 +234,6 @@ namespace Quicksand.Web.Js
             }
 
             public string GetScope() => m_Builder.ToString();
-
-            public List<Tuple<string, uint>> GetVariables() => m_Variables;
-            public StringBuilder GetBuilder() => m_Builder;
 
             public sealed override string ToString()
             {

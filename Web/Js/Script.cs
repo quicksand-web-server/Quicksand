@@ -5,12 +5,13 @@ namespace Quicksand.Web.Js
 {
     public class Script: Resource
     {
+        internal readonly static string VARIABLE_NAME_PATTERN = "^[a-zA-Z_]+[a-zA-Z0-9_]*$";
         private readonly List<Variable> m_Variables = new();
         private readonly List<IInstruction> m_Instructions = new();
         internal Script AddVariableInstruction(VariableDeclaration instruction)
         {
             Variable variable = instruction.GetVariable();
-            if (Regex.IsMatch(variable.GetName(), "^[a-zA-Z0-9]*$"))
+            if (Regex.IsMatch(variable.GetName(), VARIABLE_NAME_PATTERN))
             {
                 m_Variables.Add(instruction.GetVariable());
                 m_Instructions.Add(instruction);
@@ -133,7 +134,7 @@ namespace Quicksand.Web.Js
         protected override void Get(int clientID, Request request)
         {
             if (m_Instructions.Count > 0)
-                SendResponse(clientID, Defines.NewResponse(200, ToString(), MIME.TEXT.JAVASCRIPT)); //TODO: Change to ToMinify(), when minifying has been fixed
+                SendResponse(clientID, Defines.NewResponse(200, ToMinify(), MIME.TEXT.JAVASCRIPT));
             else
                 SendError(clientID, Defines.NewResponse(404));
         }
