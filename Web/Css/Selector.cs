@@ -1,9 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Text.RegularExpressions;
-using System.Threading.Tasks;
+﻿using System.Text.RegularExpressions;
 
 namespace Quicksand.Web.Css
 {
@@ -18,26 +13,34 @@ namespace Quicksand.Web.Css
         private readonly static Regex ELEMENT_CLASS_REGEX = new(@"^[A-Za-z]+\.[A-Za-z]+");
 
         /// <summary>
-        /// Parse the given string and return the <seealso cref="Selector"/> corresponding
+        /// Parse the given string and return a list of <seealso cref="Selector"/> corresponding
         /// </summary>
-        /// <param name="selector">String to parse</param>
-        /// <returns>A corresponding <seealso cref="Selector"/>, null if none</returns>
-        public static Selector? Parse(string selector)
+        /// <param name="selectorLine">String to parse</param>
+        /// <returns>A corresponding <seealso cref="Selector"/>, empty list if none</returns>
+        public static List<Selector> Parse(string selectorLine)
         {
-            if (selector == "*")
-                return new UniversalSelector();
-            else if (ID_REGEX.IsMatch(selector))
-                return new IDSelector(selector[1..]);
-            else if (CLASS_REGEX.IsMatch(selector))
-                return new ClassSelector(selector[1..]);
-            else if (ELEMENT_CLASS_REGEX.IsMatch(selector))
+            List<Selector> selectorList = new();
+            string[] selectors = selectorLine.Split(',');
+            foreach (string s in selectors)
             {
-                string[] elementClass = selector.Split('.');
-                return new ElementClassSelector(elementClass[0], elementClass[1]);
+                string selector = s.Trim();
+                if (selector == "*")
+                    selectorList.Add(new UniversalSelector());
+                else if (ID_REGEX.IsMatch(selector))
+                    selectorList.Add(new IDSelector(selector[1..]));
+                else if (CLASS_REGEX.IsMatch(selector))
+                    selectorList.Add(new ClassSelector(selector[1..]));
+                else if (ELEMENT_CLASS_REGEX.IsMatch(selector))
+                {
+                    string[] elementClass = selector.Split('.');
+                    selectorList.Add(new ElementClassSelector(elementClass[0], elementClass[1]));
+                }
+                else if (ELEMENT_REGEX.IsMatch(selector))
+                    selectorList.Add(new ElementSelector(selector));
+                else
+                    throw new ArgumentException(string.Format("\"{0}\" isn't a valid selector string", selectorLine));
             }
-            else if (ELEMENT_REGEX.IsMatch(selector))
-                return new ElementSelector(selector);
-            return null;
+            return selectorList;
         }
 
         private string m_Selector;

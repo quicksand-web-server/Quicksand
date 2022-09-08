@@ -20,14 +20,7 @@ namespace Quicksand.Web.Css
         /// Constructor
         /// </summary>
         /// <param name="selectorStr">Required selector string for the rule</param>
-        public Rule(string selectorStr)
-        {
-            Selector? selector = Selector.Parse(selectorStr);
-            if (selector != null)
-                m_Selectors.Add(selector);
-            else
-                throw new ArgumentException("Given string isn't a valid selector string");
-        }
+        public Rule(string selectorStr) => m_Selectors.AddRange(Selector.Parse(selectorStr));
 
         /// <summary>
         /// Add a selector to the rule
@@ -39,12 +32,7 @@ namespace Quicksand.Web.Css
         /// Add a selector to the rule
         /// </summary>
         /// <param name="selectorStr">Selector string to add</param>
-        public void AddSelector(string selectorStr)
-        {
-            Selector? selector = Selector.Parse(selectorStr);
-            if (selector != null)
-                m_Selectors.Add(selector);
-        }
+        public void AddSelector(string selectorStr) => m_Selectors.AddRange(Selector.Parse(selectorStr));
 
         /// <summary>
         /// Add a property to the rule

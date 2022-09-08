@@ -627,7 +627,7 @@ namespace Quicksand.Web
         /// </summary>
         /// <param name="content">Content of the HTML or QSML</param>
         /// <returns>A model corresponding to the content. Null if an error occured</returns>
-        public static Model? Parse(string content)
+        public static Model Parse(string content)
         {
             content = content.Trim();
             string doctype = ExtractDoctype(ref content);
@@ -669,7 +669,7 @@ namespace Quicksand.Web
         /// </summary>
         /// <param name="path">Path of the HTML or QSML file</param>
         /// <returns>A model corresponding to the file. Null if an error occured</returns>
-        public static Model? ParseFile(string path)
+        public static Model ParseFile(string path)
         {
             if (File.Exists(path))
                 return Parse(File.ReadAllText(path));
