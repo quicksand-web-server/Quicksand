@@ -100,10 +100,7 @@ namespace Quicksand.Web
             else
             {
                 m_Model = model;
-                Script framework = new();
-                framework.SetScriptContent(Minify(Properties.Resources.quicksand_framework));
-                m_Model.GetHead().AddScript(framework);
-                m_Model.GetBody().SetAttribute("onload", string.Format("QuickSandFramework.main('{0}')", m_ID));
+                SetQuicksandFramework();
                 AfterGenerateModel();
             }
             m_DeleteWatch.Start();
@@ -270,6 +267,17 @@ namespace Quicksand.Web
             favicon.SetMediaType("image/x-icon");
             favicon.SetHref(FAVICON);
             head.AddLink(favicon);
+        }
+
+        /// <summary>
+        /// Add Quicksand javascript framework to the model
+        /// </summary>
+        protected void SetQuicksandFramework()
+        {
+            Script framework = new();
+            framework.SetScriptContent(Minify(Properties.Resources.quicksand_framework));
+            m_Model.GetHead().AddScript(framework);
+            m_Model.GetBody().SetAttribute("onload", string.Format("QuickSandFramework.main('{0}')", m_ID));
         }
 
         /// <summary>

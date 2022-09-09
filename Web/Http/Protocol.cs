@@ -11,7 +11,7 @@ namespace Quicksand.Web.Http
         private Response? m_HoldingResponse = null;
         private byte[] m_ResponseBuffer = Array.Empty<byte>();
 
-        public Protocol(Socket socket, Client client) : base(socket, client) {}
+        public Protocol(Stream stream, Client client) : base(stream, client) {}
 
         private string? GetBody(int bodyLength)
         {
@@ -138,8 +138,8 @@ namespace Quicksand.Web.Http
             try
             {
                 byte[] data = Encoding.UTF8.GetBytes(buffer);
-                if (m_Socket.Connected)
-                    m_Socket.Send(data, data.Length, 0);
+                if (m_Stream.CanWrite)
+                    m_Stream.Write(data);
             }
             catch {}
         }

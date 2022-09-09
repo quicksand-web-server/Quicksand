@@ -7,7 +7,7 @@ namespace Quicksand.Web.WebSocket
     {
         private readonly StringBuilder m_ReadBuffer = new();
 
-        public Protocol(Socket socket, Client client) : base(socket, client) {}
+        public Protocol(Stream stream, Client client) : base(stream, client) {}
 
         internal override void ReadBuffer(byte[] buffer)
         {

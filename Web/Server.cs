@@ -1,6 +1,7 @@
 ﻿using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
+using System.Security.Cryptography.X509Certificates;
 
 namespace Quicksand.Web
 {
@@ -28,6 +29,7 @@ namespace Quicksand.Web
         private readonly ResourceManager m_Resources = new();
         private readonly Dictionary<string, Controler> m_Controlers = new();
         private readonly Dictionary<string, MethodHandler> m_MethodHandlers = new();
+        private X509Certificate? m_ServerCertificate = null;
 
         /// <summary>
         /// Create a Quicksand server on the specified <paramref name="port"/>
@@ -41,43 +43,15 @@ namespace Quicksand.Web
         }
 
         /// <summary>
-        /// Iterate over directories pointed by the path to add all files as resources
+        /// Load an SSL certificate file on the server
         /// </summary>
-        /// <example>
-        /// File System:<br/>
-        /// myTestDir<br/>
-        /// |- dir1<br/>
-        /// |   |- fileA.txt<br/>
-        /// |   -- fileB.txt<br/>
-        /// |- fileC.txt<br/>
-        /// -- fileD.txt<br/>
-        /// <c> server.AddResource("/test", "myTestDir", Http.MIME.TEXT.PLAIN); </c><br/>
-        /// Will result in the add of resources:<br/>
-        /// /test/dir1/testa.txt<br/>
-        /// /test/dir1/testb.txt<br/>
-        /// /test/testc.txt<br/>
-        /// /test/testd.txt<br/>
-        /// </example>
-        /// <param name="url">Path of the file in the server. Should start with a /</param>
-        /// <param name="path">Path of the file to add</param>
-        /// <param name="contentType">MIME type of the content to send</param>
-        /// <param name="preLoad">Specify if we should load in memory the file content (false by default)</param>
-        [ObsoleteAttribute("Function will be removed in v0.0.9. Please use AddFile with MIME type instead of string")]
-        public void AddResource(string url, string path, string contentType, bool preLoad = false)
+        /// <remarks>
+        /// Calling this function will make this http/ws server a https/wss server
+        /// </remarks>
+        /// <param name="path"></param>
+        public void LoadCertificate(string path)
         {
-            if (File.Exists(path))
-            {
-                Http.MIME? contentMIME = Http.MIME.Parse(contentType);
-                if (contentMIME == null)
-                    return;
-                AddResource(url, new Http.File(path, contentMIME, preLoad), false);
-            }
-            else if (Directory.Exists(path))
-            {
-                string[] entries = Directory.GetFileSystemEntries(path);
-                foreach (string entry in entries)
-                    AddResource(string.Format("{0}/{1}", (url.Length > 0 && url[^1] == '/') ? url[..^1] : url, Path.GetFileName(entry).Replace(' ', '_').ToLowerInvariant()), entry, contentType, preLoad);
-            }
+            m_ServerCertificate = X509Certificate.CreateFromCertFile(path);
         }
 
         /// <summary>
@@ -185,7 +159,7 @@ namespace Quicksand.Web
                     clientID = m_FreeIdx[0];
                     m_FreeIdx.RemoveAt(0);
                 }
-                Client client = new(this, acceptedSocket, clientID);
+                Client client = new(this, acceptedSocket, clientID, m_ServerCertificate);
                 m_Clients[client.GetID()] = client;
                 client.StartReceiving();
                 m_HttpServerSocket.BeginAccept(AcceptCallback, m_HttpServerSocket);
