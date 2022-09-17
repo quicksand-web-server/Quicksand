@@ -27,8 +27,8 @@
         /// </summary>
         /// <param name="path">Path to the file</param>
         /// <param name="contentType">MIME type of the file</param>
-        /// <param name="preLoad">Specify if we should load in memory the file content (false by default)</param>
-        public File(string path, MIME contentType, bool preLoad = false): base()
+        /// <param name="preLoad">Specify if we should load in memory the file content</param>
+        public File(string path, MIME contentType, bool preLoad): base()
         {
             m_Path = path;
             m_ContentType = contentType;
@@ -36,6 +36,18 @@
                 m_Content = System.IO.File.ReadAllText(m_Path, GetEncoding(contentType));
             else
                 m_Content = "";
+        }
+
+        /// <summary>
+        /// Constructor
+        /// </summary>
+        /// <param name="content">Content of the file</param>
+        /// <param name="contentType">MIME type of the file</param>
+        public File(string content, MIME contentType) : base()
+        {
+            m_Path = "";
+            m_ContentType = contentType;
+            m_Content = content;
         }
 
         /// <summary>

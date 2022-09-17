@@ -1,5 +1,4 @@
-﻿using System.IO;
-using System.Net;
+﻿using System.Net;
 using System.Net.Security;
 using System.Net.Sockets;
 using System.Security.Cryptography.X509Certificates;
@@ -20,6 +19,7 @@ namespace Quicksand.Web
         private readonly AClientListener m_Listener;
         private AProtocole m_ReaderWriter;
         private bool m_IsWebSocket = false;
+        private readonly bool m_IsSecured = false;
         private readonly bool m_CanConnect;
 
         /// <summary>
@@ -28,17 +28,19 @@ namespace Quicksand.Web
         /// <param name="listener">Client listener</param>
         /// <param name="ip">IP of the server to connect to</param>
         /// <param name="port">Port of the server to connect to (80 by default)</param>
+        /// <param name="isSecured">Specify if his client is connected to an HTTPS server (false by default)</param>
         /// <param name="id">ID of the client (0 by default)</param>
-        public Client(AClientListener listener, string ip, int port = 80, int id = 0)
+        public Client(AClientListener listener, string ip, int port = 80, bool isSecured = false, int id = 0)
         {
             m_IP = ip;
             m_Port = port;
             m_ID = id;
             m_Socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-            m_Stream = new NetworkStream(m_Socket);
+            m_Stream = Stream.Null;
             m_Listener = listener;
             m_ReaderWriter = new Http.Protocol(m_Stream, this);
             m_CanConnect = true;
+            m_IsSecured = isSecured;
         }
 
         internal Client(AClientListener listener, Socket socket, int id, X509Certificate? certificate = null)
@@ -53,25 +55,23 @@ namespace Quicksand.Web
                 SslStream sslStream = new(new NetworkStream(socket), false);
                 sslStream.AuthenticateAsServer(certificate, clientCertificateRequired: false, checkCertificateRevocation: true);
                 m_Stream = sslStream;
+                m_IsSecured = true;
             }
             else
+            {
                 m_Stream = new NetworkStream(socket);
+                m_IsSecured = false;
+            }
             m_Listener = listener;
             m_ReaderWriter = new Http.Protocol(m_Stream, this);
             m_CanConnect = false;
         }
 
-        internal static bool ValidateServerCertificate(object sender, X509Certificate? certificate, X509Chain? chain, SslPolicyErrors sslPolicyErrors)
-        {
-            return (sslPolicyErrors == SslPolicyErrors.None);
-        }
-
         /// <summary>
         /// Connect the lient to a server
         /// </summary>
-        /// <param name="serverName">Name of the server on the certificate. If given the client will create an https connection</param>
         /// <returns>True if it has connect</returns>
-        public bool Connect(string? serverName = null)
+        public bool Connect()
         {
             if (!m_CanConnect)
                 return false;
@@ -83,13 +83,20 @@ namespace Quicksand.Web
                     {
                         IPEndPoint endpoint = new(ip, m_Port);
                         m_Socket.Connect(endpoint);
-                        if (serverName != null)
+                        m_Stream = new NetworkStream(m_Socket);
+                        if (m_IsSecured)
                         {
-                            SslStream sslStream = new(m_Stream, false, new RemoteCertificateValidationCallback(ValidateServerCertificate), null);
-                            sslStream.AuthenticateAsClient(serverName);
+                            SslStream sslStream = new(m_Stream, leaveInnerStreamOpen: false);
+                            var options = new SslClientAuthenticationOptions()
+                            {
+                                TargetHost = m_IP,
+                                RemoteCertificateValidationCallback = (sender, certificate, chain, errors) => errors == SslPolicyErrors.None,
+                            };
+
+                            sslStream.AuthenticateAsClientAsync(options, CancellationToken.None).Wait();
                             m_Stream = sslStream;
-                            m_ReaderWriter = new Http.Protocol(m_Stream, this);
                         }
+                        m_ReaderWriter = new Http.Protocol(m_Stream, this);
                         StartReceiving();
                         return true;
                     }
@@ -100,10 +107,13 @@ namespace Quicksand.Web
         }
 
         /// <returns>If the client is a websocket or not</returns>
-        public bool IsWebSocket() { return m_IsWebSocket; }
+        public bool IsWebSocket() => m_IsWebSocket;
+
+        /// <returns>If the client is a secured connection or not</returns>
+        public bool IsSecured() => m_IsSecured;
 
         /// <returns>The ID of the client</returns>
-        public int GetID() { return m_ID; }
+        public int GetID() => m_ID;
 
         internal void StartReceiving()
         {
@@ -149,10 +159,7 @@ namespace Quicksand.Web
         /// Send the given message to the client
         /// </summary>
         /// <param name="message">Message to send to the client/server</param>
-        public void Send(string message)
-        {
-            m_ReaderWriter.WriteBuffer(message);
-        }
+        public void Send(string message) => m_ReaderWriter.WriteBuffer(message);
 
         /// <summary>
         /// Send the given HTTP response to the client
@@ -174,10 +181,7 @@ namespace Quicksand.Web
                 m_ReaderWriter.WriteBuffer(request.ToString());
         }
 
-        internal void OnMessage(string message)
-        {
-            m_Listener.WebSocketMessage(m_ID, message);
-        }
+        internal void OnMessage(string message) => m_Listener.WebSocketMessage(m_ID, message);
 
         internal void OnClose(short code, string message)
         {

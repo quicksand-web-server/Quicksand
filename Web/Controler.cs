@@ -21,74 +21,6 @@ namespace Quicksand.Web
         private bool m_CanBeDeleted = true;
         private bool m_ToDelete = true;
 
-        private static string Minify(string javascript)
-        {
-            StringBuilder builder = new();
-            bool isInString = false;
-            bool isInComment = false;
-            char commentChar = '\0';
-            char stringChar = '\0';
-            char lastChar = '\0';
-            foreach (char c in javascript)
-            {
-                if (isInComment)
-                {
-                    if ((commentChar == '/' && c == '\n') || (commentChar == '*' && lastChar == '*' && c == '/'))
-                        isInComment = false;
-                }
-                else
-                {
-                    if (isInString)
-                    {
-                        builder.Append(c);
-                        if (c == stringChar)
-                            isInString = false;
-                    }
-                    else if (c == '"' || c == '\'')
-                    {
-                        builder.Append(c);
-                        isInString = true;
-                        stringChar = c;
-                    }
-                    else if (lastChar == '/' && (c == '*' || c == '/'))
-                    {
-                        isInComment = true;
-                        commentChar = c;
-                    }
-                    else
-                        builder.Append(c);
-                }
-                lastChar = c;
-            }
-            string purifiedScript = builder.ToString().Trim();
-            builder.Clear();
-            string[] scriptLines = purifiedScript.Split('\n');
-            foreach (string line in scriptLines)
-            {
-                string trimmedLine = line.Trim();
-                if (trimmedLine.Length > 0)
-                {
-                    char lastBuilderChar = '\0';
-                    if (builder.Length != 0)
-                        lastBuilderChar = builder[^1];
-                    if (trimmedLine[0] == '{' ||
-                        trimmedLine[0] == '}' ||
-                        lastBuilderChar == '\0' ||
-                        lastBuilderChar == ';' ||
-                        lastBuilderChar == '{' ||
-                        lastBuilderChar == '}' ||
-                        lastBuilderChar == ')')
-                        builder.Append(trimmedLine);
-                    else
-                    {
-                        builder.Append(' ');
-                        builder.Append(trimmedLine);
-                    }
-                }
-            }
-            return builder.ToString();
-        }
-
         /// <summary>
         /// Constructor
         /// </summary>
@@ -106,10 +38,7 @@ namespace Quicksand.Web
             m_DeleteWatch.Start();
         }
 
-        internal void MarkAsPermanent()
-        {
-            m_CanBeDeleted = false;
-        }
+        internal void MarkAsPermanent() => m_CanBeDeleted = false;
 
         internal bool NeedDelete()
         {
@@ -122,7 +51,7 @@ namespace Quicksand.Web
                 return false;
         }
 
-        internal string GetID() { return m_ID; }
+        internal string GetID() => m_ID;
 
         /// <summary>
         /// Send the given message to all the clients listening to this resource
@@ -139,6 +68,7 @@ namespace Quicksand.Web
             m_Listeners.Add(listenerID);
             m_ToDelete = false;
             m_DeleteWatch.Stop();
+            OnWebsocketConnect(listenerID);
         }
 
         internal void RemoveListener(int listenerID)
@@ -176,11 +106,17 @@ namespace Quicksand.Web
         }
 
         /// <summary>
+        /// Function called when the resource receive a websocket connection
+        /// </summary>
+        /// <param name="clientID">ID of the client</param>
+        protected virtual void OnWebsocketConnect(int clientID) {}
+
+        /// <summary>
         /// Function called when the resource receive a websocket message
         /// </summary>
         /// <param name="clientID">ID of the client</param>
         /// <param name="message">Received message from the websocket</param>
-        protected virtual void OnWebsocketMessage(int clientID, string message) { }
+        protected virtual void OnWebsocketMessage(int clientID, string message) {}
 
         /// <summary>
         /// Function called when the resource receive anchor parameters from websocket message
@@ -188,7 +124,7 @@ namespace Quicksand.Web
         /// <param name="clientID">ID of the client</param>
         /// <param name="anchor">Received anchor name from the websocket (can be empty)</param>
         /// <param name="parameters">Received anchor parameters from the websocket (can be empty)</param>
-        protected virtual void OnAnchorParameters(int clientID, string anchor, Dictionary<string, string> parameters) { }
+        protected virtual void OnAnchorParameters(int clientID, string anchor, Dictionary<string, string> parameters) {}
 
         /// <summary>
         /// Constructor
@@ -225,14 +161,14 @@ namespace Quicksand.Web
         /// </summary>
         /// <param name="clientID">ID of the client</param>
         /// <param name="request">HTTP request received from the client</param>
-        protected virtual void BeforeGet(int clientID, Http.Request request) { }
+        protected virtual void BeforeGet(int clientID, Http.Request request) {}
 
         /// <summary>
         /// Function called after a GET is requested on this controller and a model has been sent
         /// </summary>
         /// <param name="clientID">ID of the client</param>
         /// <param name="request">HTTP request received from the client</param>
-        protected virtual void AfterGet(int clientID, Http.Request request) { }
+        protected virtual void AfterGet(int clientID, Http.Request request) {}
 
         internal void Update(long deltaTime)
         {
@@ -275,9 +211,24 @@ namespace Quicksand.Web
         protected void SetQuicksandFramework()
         {
             Script framework = new();
-            framework.SetScriptContent(Minify(Properties.Resources.quicksand_framework));
+            framework.SetSrc("/framework.js");
             m_Model.GetHead().AddScript(framework);
             m_Model.GetBody().SetAttribute("onload", string.Format("QuickSandFramework.main('{0}')", m_ID));
+        }
+
+        /// <summary>
+        /// Redirect the client to a new url
+        /// </summary>
+        /// <param name="redirection">URL to redirect to</param>
+        /// <param name="force">If true prevent client from going back to current URL</param>
+        protected void Redirect(string redirection, bool force = false)
+        {
+            m_Model.AddRequest(new()
+            {
+                ["name"] = "redirect",
+                ["href"] = redirection,
+                ["no-back"] = force
+            });
         }
 
         /// <summary>

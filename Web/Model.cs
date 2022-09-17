@@ -1,4 +1,5 @@
 ﻿using Quicksand.Web.Html;
+using System;
 using System.Text;
 using System.Text.Json.Nodes;
 
@@ -9,14 +10,14 @@ namespace Quicksand.Web
     /// </summary>
     public class Model : ElementBase
     {
-        /// <summary>Exception thrown when <seealso cref="ModelParser"/> try to load a misformatted HTML file</summary>
+        /// <summary>Exception thrown when <seealso cref="Parse">parser</seealso> try to load a misformatted HTML file</summary>
         public class MisformattedHTMLException : Exception
         {
             /// <summary>Constructor</summary><param name="message">Exception message</param>
             public MisformattedHTMLException(string message) : base(message) { }
         }
 
-        /// <summary>Exception thrown when <seealso cref="ModelParser"/> try to load a misformatted QSML file</summary>
+        /// <summary>Exception thrown when <seealso cref="Parse">parser</seealso> try to load a misformatted QSML file</summary>
         public class MisformattedQSMLException : Exception
         {
             /// <summary>Constructor</summary><param name="message">Exception message</param>
@@ -61,7 +62,7 @@ namespace Quicksand.Web
         }
 
         /// <returns>A new <seealso cref="ElementBase"/> of the same type</returns>
-        protected override ElementBase MakeDuplicate() { return new Model(); }
+        protected override ElementBase MakeDuplicate() => new Model();
 
         /// <summary>
         /// Function called when a child is added to a duplicate
@@ -110,12 +111,12 @@ namespace Quicksand.Web
         }
 
         /// <returns>The head <seealso cref="ElementBase"/> of the document</returns>
-        public Head GetHead() { return m_Head; }
+        public Head GetHead() => m_Head;
 
         /// <returns>The body <seealso cref="ElementBase"/> of the document</returns>
-        public Body GetBody() { return m_Body; }
+        public Body GetBody() => m_Body;
 
-        internal void RegisterWidget(Widget widget) { m_Widgets.Add(widget); }
+        internal void RegisterWidget(Widget widget) => m_Widgets.Add(widget);
 
         /// <returns>A string containing the HTML of the document</returns>
         public override string ToString()
@@ -220,6 +221,14 @@ namespace Quicksand.Web
             }
         }
 
+        internal void AddRequest(JsonObject newRequest)
+        {
+            lock (m_RequestListLock)
+            {
+                m_Requests.Add(newRequest);
+            }
+        }
+
         /// <summary>
         /// Class that represent all the information of an element in the document
         /// </summary>
@@ -253,10 +262,7 @@ namespace Quicksand.Web
         /// </summary>
         /// <param name="type">Type of the widget stored in the attribute "qs-widget-type"</param>
         /// <param name="builder">Delegate to create a new widget</param>
-        public static void RegisterWidget(string type, WidgetBuilder builder)
-        {
-            ms_WidgetFactory[type] = builder;
-        }
+        public static void RegisterWidget(string type, WidgetBuilder builder) => ms_WidgetFactory[type] = builder;
 
         private delegate Element? GenerateElement(ElementInfo info);
 

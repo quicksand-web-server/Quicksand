@@ -9,8 +9,6 @@ class QuickSandFramework
 		QuickSandFramework.#socket = new WebSocket("ws://" + window.location.host + window.location.pathname);
 		QuickSandFramework.#socket.onopen = QuickSandFramework.#onOpen;
 		QuickSandFramework.#socket.onmessage = QuickSandFramework.#onMessage;
-		QuickSandFramework.#socket.onclose = QuickSandFramework.#onClose;
-		QuickSandFramework.#socket.onerror = QuickSandFramework.#onError;
 	}
 
 	static stop(code = 1000, reason = "")
@@ -45,14 +43,14 @@ class QuickSandFramework
 			{
 				let parent = document.getElementById(request["parentID"]);
 				let child = document.createElement(request["childType"]);
-				
+
 				let childAttributes = request["childAttributes"];
 				for (let n = 0; n < childAttributes.length; ++n)
 				{
 					let childAttribute = childAttributes[n];
 					child.setAttribute(childAttribute["key"], childAttribute["value"]);
 				}
-				
+
 				parent.insertBefore(child, parent.children[request["position"]]);
 			}
 			else if (requestName == "child-removed")
@@ -65,19 +63,14 @@ class QuickSandFramework
 				let parent = document.getElementById(request["parentID"]);
 				parent.insertBefore(document.createTextNode(request["content"]), parent.children[request["position"]]);
 			}
+			else if (requestName == "redirect")
+			{
+				let newHref = request["href"];
+				if (request["no-back"])
+					window.location.replace(newHref);
+				else
+					window.location.href = newHref;
+            }
 		}
-	}
-
-	static #onClose(event)
-	{
-		if (event.wasClean)
-			alert(`[close] Connection closed cleanly, code=${event.code} reason=${event.reason}`);
-		else
-			alert('[close] Connection died');
-	}
-
-	static #onError(error)
-	{
-		alert("[error] ${error.message}");
 	}
 }
