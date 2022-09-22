@@ -5,6 +5,9 @@ namespace Quicksand.Web.Http
 {
     internal class Protocol : AProtocole
     {
+        private bool m_IsHexa = true;
+        private int m_ChunkSize = 0;
+        private int m_CurrentChunkSize = 0;
         private string m_ReadBuffer = "";
         private Request? m_HoldingRequest = null;
         private Response? m_HoldingResponse = null;
@@ -25,18 +28,34 @@ namespace Quicksand.Web.Http
         {
             string ret = Encoding.UTF8.GetString(buffer, 0, buffer.Length);
             string[] chunks = ret.Split(Defines.CRLF);
-            if (chunks.Length == 1)
+            foreach (string chunk in chunks)
             {
-                m_ChunkBuilder.Append(chunks[0]);
-                string bodyContent = m_ChunkBuilder.ToString();
-                m_ChunkBuilder.Clear();
-                return bodyContent;
+                if (!string.IsNullOrEmpty(chunk))
+                {
+                    if (m_IsHexa)
+                    {
+                        m_ChunkSize = int.Parse(chunk, System.Globalization.NumberStyles.HexNumber);
+                        if (m_ChunkSize == 0)
+                        {
+                            string bodyContent = m_ChunkBuilder.ToString();
+                            m_ChunkBuilder.Clear();
+                            return bodyContent;
+                        }
+                        m_IsHexa = false;
+                    }
+                    else
+                    {
+                        m_CurrentChunkSize += Encoding.UTF8.GetBytes(chunk).Length;
+                        m_ChunkBuilder.Append(chunk);
+                        if (m_ChunkSize == m_CurrentChunkSize)
+                        {
+                            m_CurrentChunkSize = 0;
+                            m_IsHexa = true;
+                        }
+                    }
+                }
             }
-            else
-            {
-                m_ChunkBuilder.Append(chunks[1]);
-                return null;
-            }
+            return null;
         }
 
         private bool HandleRequestBodyRead(byte[] buffer)
