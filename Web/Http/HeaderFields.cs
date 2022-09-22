@@ -8,8 +8,8 @@ namespace Quicksand.Web.Http
 
         public object this[string key]
         {
-            get => m_Fields[key];
-            set => m_Fields[key] = value;
+            get => m_Fields[key.ToLower()];
+            set => m_Fields[key.ToLower()] = value;
         }
 
         public HeaderFields() { }
@@ -20,7 +20,7 @@ namespace Quicksand.Web.Http
                 int position = field.IndexOf(": ");
                 if (position >= 0)
                 {
-                    string fieldName = field[..position];
+                    string fieldName = field[..position].ToLower();
                     string fieldValue = field[(position + 2)..];
                     m_Fields[fieldName] = fieldValue;
                 }
@@ -33,7 +33,7 @@ namespace Quicksand.Web.Http
                 m_Fields[field.Key] = field.Value;
         }
 
-        public bool HaveHeaderField(string fieldName) { return m_Fields.ContainsKey(fieldName); }
+        public bool HaveHeaderField(string fieldName) { return m_Fields.ContainsKey(fieldName.ToLower()); }
 
         public override string ToString()
         {

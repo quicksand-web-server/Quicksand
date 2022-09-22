@@ -1,32 +1,133 @@
-﻿using System.Text;
+﻿using System;
+using System.Text;
 
 namespace Quicksand.Web.Http
 {
     internal class Protocol : AProtocole
     {
-        public Protocol(Stream stream, Client client) : base(stream, client) {}
+        private string m_ReadBuffer = "";
+        private Request? m_HoldingRequest = null;
+        private Response? m_HoldingResponse = null;
+        private readonly StringBuilder m_ChunkBuilder = new();
+
+        public Protocol(Stream stream, Client client) : base(stream, client) { }
+
+        private string GetBody(int bodyLength)
+        {
+            byte[] readBufferBytes = Encoding.UTF8.GetBytes(m_ReadBuffer);
+            byte[] bodyBytes = readBufferBytes.Take(bodyLength).ToArray();
+            m_ReadBuffer = Encoding.UTF8.GetString(readBufferBytes.Skip(bodyLength).ToArray());
+            return Encoding.UTF8.GetString(bodyBytes);
+        }
+
+#pragma warning disable CS8602 // Dereference of a possibly null reference.
+        private string? HandleBodyRead(byte[] buffer)
+        {
+            string ret = Encoding.UTF8.GetString(buffer, 0, buffer.Length);
+            string[] chunks = ret.Split(Defines.CRLF);
+            if (chunks.Length == 1)
+            {
+                m_ChunkBuilder.Append(chunks[0]);
+                string bodyContent = m_ChunkBuilder.ToString();
+                m_ChunkBuilder.Clear();
+                return bodyContent;
+            }
+            else
+            {
+                m_ChunkBuilder.Append(chunks[1]);
+                return null;
+            }
+        }
+
+        private bool HandleRequestBodyRead(byte[] buffer)
+        {
+            string? body = HandleBodyRead(buffer);
+            if (body != null)
+            {
+                m_HoldingRequest.SetBody(body);
+                m_Client.OnRequest(m_HoldingRequest);
+                m_HoldingRequest = null;
+                return true;
+            }
+            return false;
+        }
+
+        private bool HandleResponseBodyRead(byte[] buffer)
+        {
+            string? body = HandleBodyRead(buffer);
+            if (body != null)
+            {
+                m_HoldingResponse.SetBody(body);
+                m_Client.OnResponse(m_HoldingResponse);
+                m_HoldingResponse = null;
+                return true;
+            }
+            return false;
+        }
+#pragma warning restore CS8602 // Dereference of a possibly null reference.
+
+        private void HandleResponse(string data)
+        {
+            Response response = new(data);
+            if (response.HaveHeaderField("Content-Length"))
+            {
+                response.SetBody(GetBody(int.Parse((string)response["Content-Length"])));
+                m_Client.OnResponse(response);
+            }
+            else if (response.HaveHeaderField("Transfer-Encoding") && ((string)response["Transfer-Encoding"]).ToLower().Contains("chunked"))
+            {
+                m_HoldingResponse = response;
+                HandleBodyRead(Encoding.UTF8.GetBytes(m_ReadBuffer));
+            }
+            else
+                m_Client.OnResponse(response);
+        }
+
+        private void HandleRequest(string data)
+        {
+            Request request = new(data);
+            if (request.HaveHeaderField("Content-Length"))
+            {
+                request.SetBody(GetBody(int.Parse((string)request["Content-Length"])));
+                m_Client.OnRequest(request);
+            }
+            else if (request.HaveHeaderField("Transfer-Encoding") && ((string)request["Transfer-Encoding"]).ToLower().Contains("chunked"))
+            {
+                m_HoldingRequest = request;
+                HandleBodyRead(Encoding.UTF8.GetBytes(m_ReadBuffer));
+            }
+            else
+                m_Client.OnRequest(request);
+        }
 
         internal override void ReadBuffer(byte[] buffer)
         {
-            string readBuffer = Encoding.UTF8.GetString(buffer, 0, buffer.Length);
-            int position = readBuffer.IndexOf(Defines.CRLF + Defines.CRLF);
-            if (position >= 0)
+            if (m_HoldingRequest != null)
             {
-                string data = readBuffer[..position];
-                readBuffer = readBuffer[(position + (Defines.CRLF.Length * 2))..];
-                if (data.StartsWith("HTTP"))
-                {
-                    Response response = new(data);
-                    response.SetBody(readBuffer);
-                    m_Client.OnResponse(response);
-                }
-                else
-                {
-                    Request request = new(data);
-                    request.SetBody(readBuffer);
-                    m_Client.OnRequest(request);
-                }
+                if (!HandleRequestBodyRead(buffer))
+                    return;
             }
+            else if (m_HoldingResponse != null)
+            {
+                if (!HandleResponseBodyRead(buffer))
+                    return;
+            }
+            else
+                m_ReadBuffer += Encoding.UTF8.GetString(buffer, 0, buffer.Length);
+            int position;
+            do
+            {
+                position = m_ReadBuffer.IndexOf(Defines.CRLF + Defines.CRLF);
+                if (position >= 0)
+                {
+                    string data = m_ReadBuffer[..position];
+                    m_ReadBuffer = m_ReadBuffer[(position + (Defines.CRLF.Length * 2))..];
+                    if (data.StartsWith("HTTP"))
+                        HandleResponse(data);
+                    else
+                        HandleRequest(data);
+                }
+            } while (position >= 0);
         }
 
         internal override void WriteBuffer(string buffer)
@@ -37,7 +138,7 @@ namespace Quicksand.Web.Http
                 if (m_Stream.CanWrite)
                     m_Stream.Write(data);
             }
-            catch {}
+            catch { }
         }
     }
 }
