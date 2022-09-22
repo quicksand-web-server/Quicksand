@@ -130,10 +130,20 @@ namespace Quicksand.Web
             try
             {
                 int bytesRead = m_Stream.EndRead(AR);
-                if (bytesRead > 1)
+                if (bytesRead >= 1)
                 {
-                    Array.Resize(ref m_Buffer, bytesRead);
-                    m_ReaderWriter.ReadBuffer(m_Buffer);
+                    byte[] buffer = new byte[bytesRead];
+                    for (int i = 0; i < bytesRead; ++i)
+                        buffer[i] = m_Buffer[i];
+                    while (bytesRead == m_Buffer.Length)
+                    {
+                        int bufferLength = buffer.Length;
+                        bytesRead = m_Stream.Read(m_Buffer, 0, m_Buffer.Length);
+                        Array.Resize(ref buffer, bufferLength + bytesRead);
+                        for (int i = 0; i < bytesRead; ++i)
+                            buffer[i + bufferLength] = m_Buffer[i];
+                    }
+                    m_ReaderWriter.ReadBuffer(buffer);
                     StartReceiving();
                 }
                 else
