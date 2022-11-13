@@ -2,7 +2,10 @@
 
 namespace Quicksand.Web.WebSocket
 {
-    internal class Frame
+    /// <summary>
+    /// Class representing a websocket frame
+    /// </summary>
+    public class Frame
     {
         private readonly bool m_Fin;
         private readonly bool m_Rsv1; //Not used for now
@@ -14,7 +17,7 @@ namespace Quicksand.Web.WebSocket
         private readonly short m_StatusCode;
         private readonly string m_Content;
 
-        public Frame(bool fin, int opcode, string content, short statusCode = 0, int? mask = null)
+        internal Frame(bool fin, int opcode, string content, short statusCode = 0, int? mask = null)
         {
             m_Fin = fin;
             m_Rsv1 = false;
@@ -35,7 +38,7 @@ namespace Quicksand.Web.WebSocket
             m_Content = content;
         }
 
-        public Frame(byte[] buffer)
+        internal Frame(byte[] buffer)
         {
             byte[] frame = buffer;
             m_Fin = (frame[0] & 0b10000000) != 0;
@@ -78,15 +81,15 @@ namespace Quicksand.Web.WebSocket
             m_Content = Encoding.UTF8.GetString(frame);
         }
 
-        public bool IsFin() { return m_Fin; }
-        public bool IsRsv1() { return m_Rsv1; }
-        public bool IsRsv2() { return m_Rsv2; }
-        public bool IsRsv3() { return m_Rsv3; }
-        public int GetOpCode() { return m_OpCode; }
-        public short GetStatusCode() { return m_StatusCode; }
-        public string GetContent() { return m_Content; }
+        internal bool IsFin() { return m_Fin; }
+        internal bool IsRsv1() { return m_Rsv1; }
+        internal bool IsRsv2() { return m_Rsv2; }
+        internal bool IsRsv3() { return m_Rsv3; }
+        internal int GetOpCode() { return m_OpCode; }
+        internal short GetStatusCode() { return m_StatusCode; }
+        internal string GetContent() { return m_Content; }
 
-        public byte[] GetBytes()
+        internal byte[] GetBytes()
         {
             List<byte> bytes = new();
             byte[] bytesRaw = Encoding.UTF8.GetBytes(m_Content);
@@ -139,10 +142,11 @@ namespace Quicksand.Web.WebSocket
             return bytes.ToArray();
         }
 
-        public override string? ToString()
+        /// <returns>String representing the frame</returns>
+        public override string ToString()
         {
-            return string.Format("Fin: {0}, Op code: {1}, Status code: {2}, Content: {3}",
-                (m_Fin) ? "true" : "false", m_OpCode, m_StatusCode, m_Content); ;
+            return string.Format("Fin: {0}, Op code: {1}, Is mask: {2}, Status code: {3}, Content: {4}",
+                (m_Fin) ? "true" : "false", m_OpCode, (m_UseMask) ? "true" : "false", m_StatusCode, m_Content); ;
         }
     }
 }

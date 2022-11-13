@@ -65,6 +65,7 @@ namespace Quicksand.Web
         private readonly ResourceManagerNode m_Root = new();
         private readonly Dictionary<string, Controler> m_Controlers = new();
         private readonly ClientManager m_ClientManager;
+        private readonly Timer[] m_Timers = new Timer[1];
         private volatile bool m_Running = false;
 
         internal ResourceManager(ClientManager clientManager) => m_ClientManager = clientManager;
@@ -172,9 +173,21 @@ namespace Quicksand.Web
             if (!m_Running)
             {
                 m_Running = true;
-                Timer timer = new(interval);
-                timer.Elapsed += (sender, e) => Update();
-                timer.Start();
+                m_Timers[0] = new(interval);
+                m_Timers[0].Elapsed += (sender, e) => Update();
+                m_Timers[0].Start();
+            }
+        }
+
+        /// <summary>
+        /// Stop an update loop that will update the manager regularly
+        /// </summary>
+        public void StopUpdateLoop()
+        {
+            if (m_Running)
+            {
+                m_Running = false;
+                m_Timers[0].Stop();
             }
         }
 

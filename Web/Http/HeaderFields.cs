@@ -4,12 +4,13 @@ namespace Quicksand.Web.Http
 {
     internal class HeaderFields
     {
-        private Dictionary<string, object> m_Fields = new();
+        private readonly Dictionary<string, object> m_Fields = new();
+        private readonly Dictionary<string, object> m_LowerFields = new();
 
         public object this[string key]
         {
-            get => m_Fields[key.ToLower()];
-            set => m_Fields[key.ToLower()] = value;
+            get => GetField(key);
+            set => SetField(key, value);
         }
 
         public HeaderFields() { }
@@ -20,9 +21,9 @@ namespace Quicksand.Web.Http
                 int position = field.IndexOf(": ");
                 if (position >= 0)
                 {
-                    string fieldName = field[..position].ToLower();
+                    string fieldName = field[..position];
                     string fieldValue = field[(position + 2)..];
-                    m_Fields[fieldName] = fieldValue;
+                    SetField(fieldName, fieldValue);
                 }
             }
         }
@@ -30,10 +31,18 @@ namespace Quicksand.Web.Http
         public HeaderFields(HeaderFields other)
         {
             foreach (var field in other.m_Fields)
-                m_Fields[field.Key] = field.Value;
+                SetField(field.Key, field.Value);
         }
 
-        public bool HaveHeaderField(string fieldName) { return m_Fields.ContainsKey(fieldName.ToLower()); }
+        public bool HaveHeaderField(string fieldName) { return m_LowerFields.ContainsKey(fieldName.ToLower()); }
+
+        private void SetField(string key, object value)
+        {
+            m_Fields[key] = value;
+            m_LowerFields[key.ToLower()] = value;
+        }
+
+        private object GetField(string key) => m_LowerFields[key.ToLower()];
 
         public override string ToString()
         {

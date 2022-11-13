@@ -13,7 +13,7 @@ namespace Quicksand.Web.Http
         private Response? m_HoldingResponse = null;
         private readonly StringBuilder m_ChunkBuilder = new();
 
-        public Protocol(Stream stream, Client client) : base(stream, client) { }
+        public Protocol(Stream stream, Web.Client client) : base(stream, client) { }
 
         private string GetBody(int bodyLength)
         {

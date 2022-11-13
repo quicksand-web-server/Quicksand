@@ -63,5 +63,16 @@
                 m_ResourceManager.StartUpdateLoop();
             }
         }
+
+        public void Stop()
+        {
+            if (m_Running)
+            {
+                m_Running = false;
+                foreach (Server server in m_Servers.Values)
+                    server.StopListening();
+                m_ResourceManager.StopUpdateLoop();
+            }
+        }
     }
 }

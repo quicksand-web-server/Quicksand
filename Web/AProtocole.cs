@@ -1,6 +1,4 @@
-﻿using System.Net.Sockets;
-
-namespace Quicksand.Web
+﻿namespace Quicksand.Web
 {
     internal abstract class AProtocole
     {

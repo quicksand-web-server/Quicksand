@@ -1,4 +1,5 @@
-﻿using System.Net;
+﻿using System.IO;
+using System.Net;
 using System.Net.Sockets;
 using System.Security.Cryptography.X509Certificates;
 
@@ -115,8 +116,17 @@ namespace Quicksand.Web
             }
             catch (Exception ex)
             {
-                throw new Exception("listening error" + ex);
+                Stop();
+                throw new Exception("Listening error" + ex);
             }
+        }
+
+        /// <summary>
+        /// Stop the webserver
+        /// </summary>
+        public void StopListening()
+        {
+            m_HttpServerSocket.Close();
         }
 
         /// <summary>
@@ -132,6 +142,15 @@ namespace Quicksand.Web
             }
         }
 
+        /// <summary>
+        /// Stop the server
+        /// </summary>
+        public void Stop()
+        {
+            m_ResourceManager.StopUpdateLoop();
+            m_HttpServerSocket.Close();
+        }
+
         private void AcceptCallback(IAsyncResult ar)
         {
             try
@@ -140,9 +159,9 @@ namespace Quicksand.Web
                 m_ClientManager.NewClient(this, acceptedSocket, m_ServerCertificate);
                 m_HttpServerSocket.BeginAccept(AcceptCallback, m_HttpServerSocket);
             }
-            catch (Exception ex)
+            catch
             {
-                throw new Exception("Base Accept error" + ex);
+                Stop();
             }
         }
 
