@@ -1,52 +1,95 @@
-﻿using System;
-using System.Text;
+﻿using System.Text;
 
 namespace Quicksand.Web.Http
 {
-    internal class Protocol : AProtocole
+    internal class Protocol : AProtocol
     {
         private bool m_IsHexa = true;
         private int m_ChunkSize = 0;
         private int m_CurrentChunkSize = 0;
-        private string m_ReadBuffer = "";
+        private byte[] m_ReadBuffer = Array.Empty<byte>();
+        private byte[] m_ChunkBuilder = Array.Empty<byte>();
         private Request? m_HoldingRequest = null;
         private Response? m_HoldingResponse = null;
-        private readonly StringBuilder m_ChunkBuilder = new();
+        private readonly Web.Client m_Client;
 
-        public Protocol(Stream stream, Web.Client client) : base(stream, client) { }
+        public Protocol(Web.Client client) => m_Client = client;
 
         private string GetBody(int bodyLength)
         {
-            byte[] readBufferBytes = Encoding.UTF8.GetBytes(m_ReadBuffer);
-            byte[] bodyBytes = readBufferBytes.Take(bodyLength).ToArray();
-            m_ReadBuffer = Encoding.UTF8.GetString(readBufferBytes.Skip(bodyLength).ToArray());
+            byte[] readBufferBytes = m_ReadBuffer;
+            byte[] bodyBytes = readBufferBytes[..bodyLength];
+            m_ReadBuffer = readBufferBytes[bodyLength..];
             return Encoding.UTF8.GetString(bodyBytes);
         }
 
-#pragma warning disable CS8602 // Dereference of a possibly null reference.
+        private bool Compare<T>(T[] source, T[] key, int sourceIdx)
+        {
+            int keyIdx = 0;
+            while (keyIdx != key.Length)
+            {
+                if ((sourceIdx + keyIdx) >= source.Length || !source[sourceIdx + keyIdx]!.Equals(key[keyIdx]))
+                    return false;
+                ++keyIdx;
+            }
+            return true;
+        }
+
+        private int IndexOf<T>(T[] source, T[] key)
+        {
+            int sourceIdx = 0;
+            while (sourceIdx != source.Length)
+            {
+                if (Compare<T>(source, key, sourceIdx))
+                    return sourceIdx;
+                ++sourceIdx;
+            }
+            return -1;
+        }
+
+        private T[][] Split<T>(T[] source, T[] key)
+        {
+            List<T[]> ret = new();
+            int position;
+            do
+            {
+                position = IndexOf(source, key);
+                if (position >= 0)
+                {
+                    ret.Add(source[..position]);
+                    source = source[(position + key.Length)..];
+                }
+            } while (position >= 0);
+            ret.Add(source);
+            return ret.ToArray();
+        }
+
         private string? HandleBodyRead(byte[] buffer)
         {
-            string ret = Encoding.UTF8.GetString(buffer, 0, buffer.Length);
-            string[] chunks = ret.Split(Defines.CRLF);
-            foreach (string chunk in chunks)
+            byte[][] chunks = Split(buffer, Defines.BYTES_CRLF);
+            foreach (byte[] chunk in chunks)
             {
-                if (!string.IsNullOrEmpty(chunk))
+                if (chunk.Length != 0)
                 {
                     if (m_IsHexa)
                     {
-                        m_ChunkSize = int.Parse(chunk, System.Globalization.NumberStyles.HexNumber);
+                        m_ChunkSize = int.Parse(Encoding.UTF8.GetString(chunk), System.Globalization.NumberStyles.HexNumber);
                         if (m_ChunkSize == 0)
                         {
-                            string bodyContent = m_ChunkBuilder.ToString();
-                            m_ChunkBuilder.Clear();
+                            string bodyContent = Encoding.UTF8.GetString(m_ChunkBuilder);
+                            m_ChunkBuilder = Array.Empty<byte>();
                             return bodyContent;
                         }
                         m_IsHexa = false;
                     }
                     else
                     {
-                        m_CurrentChunkSize += Encoding.UTF8.GetBytes(chunk).Length;
-                        m_ChunkBuilder.Append(chunk);
+                        int chunkLength = chunk.Length;
+                        m_CurrentChunkSize += chunkLength;
+                        int chunkBuilderLength = m_ChunkBuilder.Length;
+                        Array.Resize(ref m_ChunkBuilder, chunkBuilderLength + chunkLength);
+                        for (int i = 0; i < chunkLength; ++i)
+                            m_ChunkBuilder[i + chunkBuilderLength] = chunk[i];
                         if (m_ChunkSize == m_CurrentChunkSize)
                         {
                             m_CurrentChunkSize = 0;
@@ -63,7 +106,7 @@ namespace Quicksand.Web.Http
             string? body = HandleBodyRead(buffer);
             if (body != null)
             {
-                m_HoldingRequest.SetBody(body);
+                m_HoldingRequest!.SetBody(body);
                 m_Client.OnRequest(m_HoldingRequest);
                 m_HoldingRequest = null;
                 return true;
@@ -76,14 +119,13 @@ namespace Quicksand.Web.Http
             string? body = HandleBodyRead(buffer);
             if (body != null)
             {
-                m_HoldingResponse.SetBody(body);
+                m_HoldingResponse!.SetBody(body);
                 m_Client.OnResponse(m_HoldingResponse);
                 m_HoldingResponse = null;
                 return true;
             }
             return false;
         }
-#pragma warning restore CS8602 // Dereference of a possibly null reference.
 
         private void HandleResponse(string data)
         {
@@ -96,7 +138,7 @@ namespace Quicksand.Web.Http
             else if (response.HaveHeaderField("Transfer-Encoding") && ((string)response["Transfer-Encoding"]).ToLower().Contains("chunked"))
             {
                 m_HoldingResponse = response;
-                HandleBodyRead(Encoding.UTF8.GetBytes(m_ReadBuffer));
+                HandleBodyRead(m_ReadBuffer);
             }
             else
                 m_Client.OnResponse(response);
@@ -113,13 +155,13 @@ namespace Quicksand.Web.Http
             else if (request.HaveHeaderField("Transfer-Encoding") && ((string)request["Transfer-Encoding"]).ToLower().Contains("chunked"))
             {
                 m_HoldingRequest = request;
-                HandleBodyRead(Encoding.UTF8.GetBytes(m_ReadBuffer));
+                HandleBodyRead(m_ReadBuffer);
             }
             else
                 m_Client.OnRequest(request);
         }
 
-        internal override void ReadBuffer(byte[] buffer)
+        public override void ReadBuffer(byte[] buffer)
         {
             if (m_HoldingRequest != null)
             {
@@ -132,15 +174,21 @@ namespace Quicksand.Web.Http
                     return;
             }
             else
-                m_ReadBuffer += Encoding.UTF8.GetString(buffer, 0, buffer.Length);
+            {
+                int bufferLength = buffer.Length;
+                int readBufferLength = m_ReadBuffer.Length;
+                Array.Resize(ref m_ReadBuffer, readBufferLength + bufferLength);
+                for (int i = 0; i < bufferLength; ++i)
+                    m_ReadBuffer[i + readBufferLength] = buffer[i];
+            }
             int position;
             do
             {
-                position = m_ReadBuffer.IndexOf(Defines.CRLF + Defines.CRLF);
+                position = IndexOf(m_ReadBuffer, Defines.DUAL_BYTES_CRLF);
                 if (position >= 0)
                 {
-                    string data = m_ReadBuffer[..position];
-                    m_ReadBuffer = m_ReadBuffer[(position + (Defines.CRLF.Length * 2))..];
+                    string data = Encoding.UTF8.GetString(m_ReadBuffer[..position]);
+                    m_ReadBuffer = m_ReadBuffer[(position + 4)..];
                     if (data.StartsWith("HTTP"))
                         HandleResponse(data);
                     else
@@ -149,13 +197,11 @@ namespace Quicksand.Web.Http
             } while (position >= 0);
         }
 
-        internal override void WriteBuffer(string buffer)
+        public override void WriteBuffer(string buffer)
         {
             try
             {
-                byte[] data = Encoding.UTF8.GetBytes(buffer);
-                if (m_Stream.CanWrite)
-                    m_Stream.Write(data);
+                Send(Encoding.UTF8.GetBytes(buffer));
             }
             catch { }
         }

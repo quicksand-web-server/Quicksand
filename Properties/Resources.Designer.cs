@@ -64,16 +64,21 @@ namespace Quicksand.Properties {
         ///   Looks up a localized string similar to class QuickSandFramework
         ///{
         ///	static #socket;
-        ///	static #controllerId = &apos;&apos;;
+        ///	static #controlerId = &apos;&apos;;
         ///
-        ///	static main(controllerId)
+        ///	static main(controlerId)
         ///	{
-        ///		QuickSandFramework.#controllerId = controllerId;
+        ///		QuickSandFramework.#controlerId = controlerId;
         ///		QuickSandFramework.#socket = new WebSocket(&quot;ws://&quot; + window.location.host + window.location.pathname);
-        ///		alert(&quot;ws://&quot; + window.location.host + window.location.pathname);
         ///		QuickSandFramework.#socket.onopen = QuickSandFramework.#onOpen;
         ///		QuickSandFramework.#socket.onmessage = QuickSandFramework.#onMessage;
-        ///		QuickSandFramework.#socket.onclos [rest of string was truncated]&quot;;.
+        ///	}
+        ///
+        ///	static stop(code = 1000, reason = &quot;&quot;)
+        ///	{
+        ///		QuickSandFramework.#socket.close(code, reason);
+        ///    }
+        /// [rest of string was truncated]&quot;;.
         /// </summary>
         internal static string quicksand_framework {
             get {

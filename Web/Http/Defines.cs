@@ -6,9 +6,17 @@
     public static class Defines
     {
         /// <summary>
-        /// HTTP CRLF "\r\n"
+        /// CRLF "\r\n"
         /// </summary>
         public static readonly string CRLF = "\r\n";
+        /// <summary>
+        /// CRLF "\r\n" as bytes
+        /// </summary>
+        public static readonly byte[] BYTES_CRLF = new byte[] { 13, 10 };
+        /// <summary>
+        /// Double CRLF "\r\n\r\n" as bytes
+        /// </summary>
+        public static readonly byte[] DUAL_BYTES_CRLF = new byte[] { 13, 10, 13, 10 };
         /// <summary>
         /// HTTP version of the server "HTTP/1.1"
         /// </summary>

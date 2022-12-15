@@ -11,13 +11,13 @@ namespace Quicksand.Web.WebSocket
         private readonly bool m_Rsv1; //Not used for now
         private readonly bool m_Rsv2; //Not used for now
         private readonly bool m_Rsv3; //Not used for now
-        private readonly int m_OpCode;
-        private readonly bool m_UseMask;
-        private readonly byte[] m_Mask = new byte[4];
+        private int m_OpCode;
+        private bool m_UseMask;
+        private byte[] m_Mask = new byte[4];
         private readonly short m_StatusCode;
-        private readonly string m_Content;
+        private readonly byte[] m_Content;
 
-        internal Frame(bool fin, int opcode, string content, short statusCode = 0, int? mask = null)
+        internal Frame(bool fin, int opcode, byte[] content, short statusCode = 0, int? mask = null)
         {
             m_Fin = fin;
             m_Rsv1 = false;
@@ -38,7 +38,7 @@ namespace Quicksand.Web.WebSocket
             m_Content = content;
         }
 
-        internal Frame(byte[] buffer)
+        internal Frame(ref byte[] buffer)
         {
             byte[] frame = buffer;
             m_Fin = (frame[0] & 0b10000000) != 0;
@@ -49,23 +49,23 @@ namespace Quicksand.Web.WebSocket
             m_UseMask = (frame[1] & 0b10000000) != 0;
             ulong payloadLen = (ulong)(buffer[1] & 0b01111111);
 
-            frame = frame.Skip(2).ToArray();
+            frame = frame[2..];
 
             if (payloadLen == 126)
             {
                 payloadLen = BitConverter.ToUInt16(new byte[] { frame[1], frame[0] }, 0);
-                frame = frame.Skip(2).ToArray();
+                frame = frame[2..];
             }
             else if (payloadLen == 127)
             {
                 payloadLen = BitConverter.ToUInt64(new byte[] { frame[7], frame[6], frame[5], frame[4], frame[3], frame[2], frame[1], frame[0] }, 0);
-                frame = frame.Skip(8).ToArray();
+                frame = frame[8..];
             }
 
             if (m_UseMask)
             {
                 m_Mask = new byte[4] { frame[0], frame[1], frame[2], frame[3] };
-                frame = frame.Skip(4).ToArray();
+                frame = frame[4..];
                 for (ulong i = 0; i < payloadLen; ++i)
                     frame[i] = (byte)(frame[i] ^ m_Mask[i % 4]);
             }
@@ -75,24 +75,32 @@ namespace Quicksand.Web.WebSocket
             if (m_OpCode == 8)
             {
                 m_StatusCode = BitConverter.ToInt16(new byte[2] { frame[1], frame[0] }, 0);
-                frame = frame.Skip(2).ToArray();
+                frame = frame[2..];
             }
 
-            m_Content = Encoding.UTF8.GetString(frame);
+            m_Content = frame[..(int)payloadLen];
+            buffer = frame[(int)payloadLen..];
         }
 
+        internal bool IsControlFrame() { return m_OpCode >= 8; }
         internal bool IsFin() { return m_Fin; }
         internal bool IsRsv1() { return m_Rsv1; }
         internal bool IsRsv2() { return m_Rsv2; }
         internal bool IsRsv3() { return m_Rsv3; }
+        internal void SetOpCode(int opCode) { m_OpCode = opCode; }
         internal int GetOpCode() { return m_OpCode; }
         internal short GetStatusCode() { return m_StatusCode; }
-        internal string GetContent() { return m_Content; }
+        internal byte[] GetContent() { return m_Content; }
+        internal void SetMask(int mask)
+        {
+            m_UseMask = true;
+            m_Mask = BitConverter.GetBytes(mask);
+        }
 
         internal byte[] GetBytes()
         {
             List<byte> bytes = new();
-            byte[] bytesRaw = Encoding.UTF8.GetBytes(m_Content);
+            byte[] bytesRaw = m_Content;
 
             if (m_OpCode == 8)
             {
@@ -146,7 +154,7 @@ namespace Quicksand.Web.WebSocket
         public override string ToString()
         {
             return string.Format("Fin: {0}, Op code: {1}, Is mask: {2}, Status code: {3}, Content: {4}",
-                (m_Fin) ? "true" : "false", m_OpCode, (m_UseMask) ? "true" : "false", m_StatusCode, m_Content); ;
+                (m_Fin) ? "true" : "false", m_OpCode, (m_UseMask) ? "true" : "false", m_StatusCode, Encoding.UTF8.GetString(m_Content)); ;
         }
     }
 }
