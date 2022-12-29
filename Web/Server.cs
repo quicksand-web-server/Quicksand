@@ -169,14 +169,14 @@ namespace Quicksand.Web
         /// Function called when the client disconnect
         /// </summary>
         /// <param name="clientID">ID of the client</param>
-        protected sealed override void OnClientDisconnect(int clientID) => m_ClientManager.Disconnect(clientID);
+        public sealed override void OnClientDisconnect(int clientID) => m_ClientManager.Disconnect(clientID);
 
         /// <summary>
         /// Function called when the client receive an HTTP request
         /// </summary>
         /// <param name="clientID">ID of the client</param>
         /// <param name="request">HTTP request received</param>
-        protected sealed override void OnHttpRequest(int clientID, Http.Request request)
+        public sealed override void OnHttpRequest(int clientID, Http.Request request)
         {
             Http.Resource? resource = m_ResourceManager.GetResource(request.Path);
             if (resource != null && !(resource.IsSecured() && m_ServerCertificate == null))
@@ -194,7 +194,7 @@ namespace Quicksand.Web
         /// </summary>
         /// <param name="clientID">ID of the client</param>
         /// <param name="message">Websocket message received</param>
-        protected sealed override void OnWebSocketMessage(int clientID, string message)
+        public sealed override void OnWebSocketMessage(int clientID, string message)
         {
             if (m_ClientManager.TransferWebsocketMessage(clientID, message))
                 return;

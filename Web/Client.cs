@@ -58,6 +58,7 @@ namespace Quicksand.Web
         /// <returns>True</returns>
         protected override bool OnConnect()
         {
+            Logger.Log(Logger.LogType.TCP, string.Format("[{0}] Connected", m_ID));
             SetProtocol(new Http.Protocol(this));
             return true;
         }
@@ -67,7 +68,8 @@ namespace Quicksand.Web
         /// </summary>
         protected override void OnDisconnect()
         {
-            m_Listener.ClientDisconnect(m_ID);
+            Logger.Log(Logger.LogType.TCP, string.Format("[{0}] Diconnected", m_ID));
+            m_Listener.OnClientDisconnect(m_ID);
         }
 
         /// <summary>
@@ -89,8 +91,9 @@ namespace Quicksand.Web
         {
             if (response != null)
             {
+                Logger.Log(Logger.LogType.HTTP, string.Format("=> [{0}] {1}", m_ID, response.ToString()));
                 Send(response.ToString());
-                m_Listener.HttpResponseSent(m_ID, response);
+                m_Listener.OnHttpResponseSent(m_ID, response);
             }
         }
 
@@ -98,27 +101,28 @@ namespace Quicksand.Web
         /// Send the given HTTP request to the client
         /// </summary>
         /// <param name="request">HTTP request to send to the server</param>
-        public void SendRequest(Http.Request? request)
+        public void SendRequest(Request? request)
         {
             if (request != null)
             {
+                Logger.Log(Logger.LogType.HTTP, string.Format("=> [{0}] {1}", m_ID, request.ToString()));
                 Send(request.ToString());
-                m_Listener.HttpRequestSent(m_ID, request);
+                m_Listener.OnHttpRequestSent(m_ID, request);
             }
         }
 
-        internal void OnMessage(string message) => m_Listener.WebSocketMessage(m_ID, message);
+        internal void OnMessage(string message) => m_Listener.OnWebSocketMessage(m_ID, message);
 
         internal void OnClose(short code, string message)
         {
             Disconnect();
-            m_Listener.WebSocketClose(m_ID, code, message);
+            m_Listener.OnWebSocketClose(m_ID, code, message);
         }
 
         internal void OnError(string error)
         {
             Disconnect();
-            m_Listener.WebSocketError(m_ID, error);
+            m_Listener.OnWebSocketError(m_ID, error);
         }
 
         /// <summary>
@@ -130,23 +134,25 @@ namespace Quicksand.Web
             m_IsWebSocket = true;
         }
 
-        internal virtual void OnRequest(Http.Request request)
+        internal virtual void OnRequest(Request request)
         {
+            Logger.Log(Logger.LogType.HTTP, string.Format("<= [{0}] {1}", m_ID, request.ToString()));
             if (request.HaveHeaderField("Sec-WebSocket-Key"))
             {
                 Send(WebSocket.Protocol.HandleHandshake(request).ToString());
                 SetWebSocketProtocol();
             }
             else
-                m_Listener.HttpRequest(m_ID, request);
+                m_Listener.OnHttpRequest(m_ID, request);
         }
 
         internal virtual void OnResponse(Response response)
         {
-            m_Listener.HttpResponse(m_ID, response);
+            Logger.Log(Logger.LogType.HTTP, string.Format("<= [{0}] {1}", m_ID, response.ToString()));
+            m_Listener.OnHttpResponse(m_ID, response);
         }
 
-        internal void OnWebsocketFrameSent(Frame frame) => m_Listener.WebSocketFrameSent(m_ID, frame);
-        internal void OnWebsocketFrameReceived(Frame frame) => m_Listener.WebSocketFrame(m_ID, frame);
+        internal void OnWebsocketFrameSent(Frame frame) => m_Listener.OnWebSocketFrameSent(m_ID, frame);
+        internal void OnWebsocketFrameReceived(Frame frame) => m_Listener.OnWebSocketFrame(m_ID, frame);
     }
 }

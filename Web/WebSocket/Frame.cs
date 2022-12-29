@@ -76,6 +76,7 @@ namespace Quicksand.Web.WebSocket
             {
                 m_StatusCode = BitConverter.ToInt16(new byte[2] { frame[1], frame[0] }, 0);
                 frame = frame[2..];
+                payloadLen -= 2;
             }
 
             m_Content = frame[..(int)payloadLen];

@@ -2,6 +2,8 @@
 using System.Net.Sockets;
 using System.Net;
 using System.Security.Cryptography.X509Certificates;
+using Quicksand.Web.Http;
+using System;
 
 namespace Quicksand.Web
 {
@@ -135,46 +137,33 @@ namespace Quicksand.Web
             return false;
         }
 
-        internal void StartReceiving()
+        private async Task Receive()
         {
-            try
+            byte[] readBuffer = new byte[1024];
+            int bytesRead = await m_Stream.ReadAsync(readBuffer.AsMemory(0, readBuffer.Length));
+            if (bytesRead >= 1)
             {
-                m_Buffer = new byte[1024];
-                m_Stream.BeginRead(m_Buffer, 0, m_Buffer.Length, ReceiveCallback, null);
-            } catch {}
+                byte[] buffer = new byte[bytesRead];
+                for (int i = 0; i < bytesRead; ++i)
+                    buffer[i] = readBuffer[i];
+                while (bytesRead == readBuffer.Length)
+                {
+                    int bufferLength = buffer.Length;
+                    bytesRead = m_Stream.Read(readBuffer, 0, readBuffer.Length);
+                    Array.Resize(ref buffer, bufferLength + bytesRead);
+                    for (int i = 0; i < bytesRead; ++i)
+                        buffer[i + bufferLength] = readBuffer[i];
+                }
+                m_Protocol?.ReadBuffer(buffer);
+                StartReceiving();
+            }
+            else
+                Disconnect();
         }
 
-        private void ReceiveCallback(IAsyncResult AR)
+        internal void StartReceiving()
         {
-            try
-            {
-                int bytesRead = m_Stream.EndRead(AR);
-                if (bytesRead >= 1)
-                {
-                    byte[] buffer = new byte[bytesRead];
-                    for (int i = 0; i < bytesRead; ++i)
-                        buffer[i] = m_Buffer[i];
-                    while (bytesRead == m_Buffer.Length)
-                    {
-                        int bufferLength = buffer.Length;
-                        bytesRead = m_Stream.Read(m_Buffer, 0, m_Buffer.Length);
-                        Array.Resize(ref buffer, bufferLength + bytesRead);
-                        for (int i = 0; i < bytesRead; ++i)
-                            buffer[i + bufferLength] = m_Buffer[i];
-                    }
-                    m_Protocol?.ReadBuffer(buffer);
-                    StartReceiving();
-                }
-                else
-                    Disconnect();
-            }
-            catch
-            {
-                if (!m_Socket.Connected)
-                    Disconnect();
-                else
-                    StartReceiving();
-            }
+            Task.Factory.StartNew(async () => await Receive());
         }
 
         /// <summary>

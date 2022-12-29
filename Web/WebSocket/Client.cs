@@ -84,11 +84,11 @@ namespace Quicksand.Web.WebSocket
                 if ((string)response["Sec-WebSocket-Accept"] == m_ExpectedSecWebSocketKey)
                 {
                     SetWebSocketProtocol();
-                    m_Listener.WebSocketOpen(GetID(), response);
+                    m_Listener.OnWebSocketOpen(GetID(), response);
                 }
             }
             else
-                m_Listener.HttpResponse(GetID(), response);
+                m_Listener.OnHttpResponse(GetID(), response);
         }
     }
 }

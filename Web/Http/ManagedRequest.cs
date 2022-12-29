@@ -9,8 +9,8 @@
         {
             private readonly ManagedRequest m_AutoRequest;
             public AutoRequestClientListener(ManagedRequest autoRequest) => m_AutoRequest = autoRequest;
-            protected override void OnClientDisconnect(int _) {}
-            protected override void OnHttpResponse(int _, Response response) => m_AutoRequest.SetResponse(response);
+            public override void OnClientDisconnect(int _) {}
+            public override void OnHttpResponse(int _, Response response) => m_AutoRequest.SetResponse(response);
         }
 
         private bool m_IsSent = false;
