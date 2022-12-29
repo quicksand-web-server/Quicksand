@@ -3,6 +3,7 @@
     /// <summary>
     /// Class representing an HTTP/HTTPS request with response
     /// </summary>
+    [Obsolete("This class is currently unstable")]
     public class ManagedRequest
     {
         private class AutoRequestClientListener : AClientListener
@@ -89,6 +90,7 @@
     /// <summary>
     /// Class representing a direct HTTP/HTTPS GET request
     /// </summary>
+    [Obsolete("This class is currently unstable")]
     public class GetRequest: ManagedRequest
     {
         /// <summary>
@@ -102,6 +104,7 @@
     /// <summary>
     /// Class representing a direct HTTP/HTTPS HEAD request
     /// </summary>
+    [Obsolete("This class is currently unstable")]
     public class HeadRequest : ManagedRequest
     {
         /// <summary>
@@ -115,6 +118,7 @@
     /// <summary>
     /// Class representing a direct HTTP/HTTPS POST request
     /// </summary>
+    [Obsolete("This class is currently unstable")]
     public class PostRequest : ManagedRequest
     {
         /// <summary>
@@ -128,6 +132,7 @@
     /// <summary>
     /// Class representing a direct HTTP/HTTPS PUT request
     /// </summary>
+    [Obsolete("This class is currently unstable")]
     public class PutRequest : ManagedRequest
     {
         /// <summary>
@@ -141,6 +146,7 @@
     /// <summary>
     /// Class representing a direct HTTP/HTTPS DELETE request
     /// </summary>
+    [Obsolete("This class is currently unstable")]
     public class DeleteRequest : ManagedRequest
     {
         /// <summary>
@@ -154,6 +160,7 @@
     /// <summary>
     /// Class representing a direct HTTP/HTTPS CONNECT request
     /// </summary>
+    [Obsolete("This class is currently unstable")]
     public class ConnectRequest : ManagedRequest
     {
         /// <summary>
@@ -167,6 +174,7 @@
     /// <summary>
     /// Class representing a direct HTTP/HTTPS OPTIONS request
     /// </summary>
+    [Obsolete("This class is currently unstable")]
     public class OptionsRequest : ManagedRequest
     {
         /// <summary>
@@ -180,6 +188,7 @@
     /// <summary>
     /// Class representing a direct HTTP/HTTPS TRACE request
     /// </summary>
+    [Obsolete("This class is currently unstable")]
     public class TraceRequest : ManagedRequest
     {
         /// <summary>
@@ -193,6 +202,7 @@
     /// <summary>
     /// Class representing a direct HTTP/HTTPS PATCH request
     /// </summary>
+    [Obsolete("This class is currently unstable")]
     public class PatchRequest : ManagedRequest
     {
         /// <summary>
